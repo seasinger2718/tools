@@ -1,0 +1,30 @@
+#!/bin/bash
+
+BASE_DIR=`pwd`
+HABARI_VERSION="5.1"
+SNAPSHOT="-SNAPSHOT"
+JAR_FILE="adapter-server-${HABARI_VERSION:-5.1}${SNAPSHOT}.jar"
+LOG_FILE=adapter.log
+
+#JAVA_OPTS="-Xms256m -Xmx1024m -XX:MaxPermSize=256m"
+
+DEBUG_ON=${DEBUG_ON:-true}
+if [ ${DEBUG_ON} == 'true' ] ; then
+  DEBUG_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5007"
+fi
+
+JRON=${JRON:-true}
+if [ ${JRON} == 'true' ] ; then
+  DEBUG_OPTIONS="${DEBUG_OPTIONS} -javaagent:/opt/jars/jrebel.jar -DHOME_ROOT=/home/tflynn"
+fi
+
+CONFIGURATION_FILE="${1:-adapter.yml}"
+
+CMD="rm -rf *log*"
+echo "$CMD"
+$CMD
+
+CMD="java -cp ./target/${JAR_FILE} ${JAVA_OPTS} ${DEBUG_OPTIONS}  -Dcontivo.runtime.classpath=/Users/tracy/Everything/ActivitiesTracelink/maps2/classes tracelink.adapter.APIRunner server adapter.yml  ${CONFIGURATION_FILE}"
+echo "$CMD"
+($CMD >>all.log 2>&1) &
+

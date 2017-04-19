@@ -1,0 +1,2 @@
+sudo mount   /dev/vm_lvs/lvol_abcefg  /xenvms/ABCefg
+sudo mount   /dev/vm_lvs/lvol_abcefg  /xenvms/ABCefg

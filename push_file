@@ -1,0 +1,28 @@
+#!/usr/bin/env ruby
+
+if ARGV[0]
+  current_file = ARGV[0]
+  unless current_file =~ /^\//
+    current_file = File.expand_path(File.join(Dir.getwd,current_file))
+  end
+  
+  if File.exists?('/etc/shortname')
+    hostname=`cat /etc/shortname`
+  else
+    hostname=`hostname`
+  end
+  
+  if hostname =~ /home/
+    target_file = current_file.gsub(/tracy/,'tflynn')
+    target_host='tflynn@10.1.10.52'
+  else
+    target_file = current_file.gsub(/tflynn/,'tracy')
+    target_host='tracy@tracy.dynalias.net'
+  end
+
+  cmd="rsync -a #{current_file} #{target_host}:#{target_file}"
+  puts cmd
+  puts `#{cmd}`
+  
+end
+

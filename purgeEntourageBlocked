@@ -1,0 +1,15 @@
+#!/bin/tcsh
+
+set isEntourageRunning = "x`ps -ax |  grep -i Microsoft\ Ent | grep -v -i grep | grep -v -i purgeEntourageBlocked | grep -c -i Microsoft\ Ent`"
+
+if ($isEntourageRunning == "x1") then
+	#echo Entourage running. Starting purge ...
+	osascript ~/Documents/Microsoft\ User\ Data/Entourage\ Script\ Menu\ Items/PurgeBlockedReplies
+	#echo Ending purge
+endif
+
+if ($isEntourageRunning != "x1") then
+	#echo Entourage not running
+endif
+
+#echo Exiting purge script

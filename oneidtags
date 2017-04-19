@@ -1,0 +1,5 @@
+#!/bin/tcsh
+
+# List OneID tags from svn
+svn list file:///Users/tracy/Projects/svnrepository/Docs/OneID/tags
+

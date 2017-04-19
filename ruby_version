@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+
+
+full_ruby_version =`rubyversion`.strip.chomp
+ruby_version = full_ruby_version.split(' ')[1]
+major, minor, rest = ruby_version.split('.')
+tiny, patch = rest.split('p')
+
+if __FILE__ == $0
+  
+  if ARGV.size != 1
+    puts ruby_version
+  else
+    arg = ARGV[0].downcase
+    if arg == 'major'
+      puts major
+    elsif arg == 'minor'
+      puts minor
+    elsif arg == 'tiny'
+      puts tiny
+    elsif arg == 'patch'
+      puts patch
+    elsif arg == 'major_minor'
+      puts %{#{major}.#{minor}}
+    elsif arg == 'major_minor_tiny'
+      puts %{#{major}.#{minor}.#{tiny}}
+    else
+      puts ruby_version
+    end
+  end
+
+end

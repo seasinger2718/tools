@@ -1,0 +1,26 @@
+#!/bin/tcsh
+
+#foreach f (`svn status`)
+#  echo Processing "$f" ...
+#  set svn_stat=`echo $f | cut -c 1`
+#  echo $f " : " $svn_stat
+#  if "$svn_stat" == "?" then
+#    echo $f
+#  endif
+#end
+
+#foreach f (`svn status | grep -f ~/Everything/Resources/Scripts/subaddnew-1.grep | cut -c 8- `)
+#  svn add $f
+#end
+
+(rm -rf tmp/cache/*) >& /dev/null ; (rm -rf tmp/sessions/* ) >& /dev/null ; (rm -rf tmp/sockets/*) >& /dev/null
+
+
+set ifile=/tmp/in.$$
+set xfile=/tmp/out.$$
+svn status | grep -f ~/Everything/Resources/Scripts/subaddnew-1.grep | cut -c 8- > $ifile
+awk -f ~/Everything/Resources/Scripts/subaddnew-1.awk <$ifile >$xfile
+chmod a+x $xfile
+sh -v -f $xfile
+rm $ifile	
+rm $xfile

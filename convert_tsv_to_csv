@@ -1,0 +1,18 @@
+#!/usr/bin/env ruby
+
+line_count = 1
+max_line_count = 1
+while (input_line = STDIN.gets)
+  input_line = input_line.strip.chomp
+  input_fields = input_line.split("\t")
+  output_fields = []
+  input_fields.each do |input_field|
+    output_field = input_field.strip.chomp
+    output_field = output_field.gsub(/^\"/,'').gsub(/\"$/,'')
+    output_fields << output_field
+  end
+  output_line = output_fields.join(",")
+  puts output_line
+  line_count += 1
+  #break if line_count > max_line_count
+end

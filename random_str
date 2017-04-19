@@ -1,0 +1,3 @@
+#!/usr/bin/env ruby
+random_str = ( ('a'..'z').to_a + ('A'..'Z').to_a).shuffle[0,10].join
+puts random_str

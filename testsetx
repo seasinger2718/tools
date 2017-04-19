@@ -1,0 +1,4 @@
+#!/bin/sh
+
+export SILLY=oneforme
+echo SILLY is really $SILLY

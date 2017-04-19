@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if [ "`ps -alxww | grep -i dotprojectmailhandler | grep -c java`" = "1" ]; then
+	echo DotProjectMailHandler running
+else
+	echo DotProjectMailHandler stopped
+fi

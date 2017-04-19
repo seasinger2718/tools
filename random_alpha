@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby
+
+total_characters = (ARGV[0] || '8').to_i
+
+def random_alpha(length=10)
+  chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ'
+  result = ''
+  length.times { result << chars[rand(chars.size)] }
+  result
+end
+
+puts random_alpha(total_characters)
+

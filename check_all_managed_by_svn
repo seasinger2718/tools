@@ -1,0 +1,8 @@
+#!/bin/tcsh
+
+find . -name \*.rb -exec check_managed_by_svn {} \;
+find . -name \*.rhtml -exec check_managed_by_svn {} \;
+find . -name \*.yml -exec check_managed_by_svn {} \;
+find . -name \*.sql -exec check_managed_by_svn {} \;
+find . -name \*.loadfile -exec check_managed_by_svn {} \;
+#find . -name \*.datafile -exec check_managed_by_svn {} \;

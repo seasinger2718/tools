@@ -1,0 +1,14 @@
+#!/bin/tcsh
+
+# Script to use Tinderbox Tools to load a set of text notes
+
+foreach textfile (*.txt)
+
+	set title=`echo $textfile | sed -e "s/\.txt//g"`
+	echo ${title}
+	#set title=`echo ${textfile} | sed -e "s/([
+	#cat ${textfile} | addnote -c red "Top" - t1
+	#set textfilebase=`basename $textfile`
+	#echo ${textfile} ":" ${textfilebase}
+
+end

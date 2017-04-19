@@ -1,0 +1,6 @@
+#!/bin/bash
+
+export PATH=/usr/local64g135/bin:${PATH}
+pushd ~/Everything/Activities/uunique_ids 2>&1 >/dev/null
+ruby ./bin/uuid_plain.rb
+popd 2>&1 >/dev/null

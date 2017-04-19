@@ -1,0 +1,28 @@
+#!/usr/bin/env ruby
+# LOG_FILES = ['development', 'test', 'production']
+# LOG_FILES.each do |logfile|
+EXCEPT_LIST = ['logistic_server']
+Dir.glob('log/*.log').each do |logfile|
+  EXCEPT_LIST.each do |except|
+    if File.basename(logfile).match(except)
+#      puts "Skipping this file ..."
+      next
+    end
+  end
+  filename = File.expand_path(logfile)
+  File.truncate(filename,0) if File.exists?(filename)
+end
+if File.exists?('log/consolidated')
+  Dir.glob('log/consolidated/*.log').each do |logfile|
+#    puts "looking at #{logfile} filename #{File.basename(logfile)}"
+    EXCEPT_LIST.each do |except|
+      if File.basename(logfile).match(except)
+#        puts "Skipping this file ..."
+        next
+      end
+    end
+    filename = File.expand_path(logfile)
+ #   puts "About to clear #{filename}"
+    File.truncate(filename,0) if File.exists?(filename)
+  end
+end

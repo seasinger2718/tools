@@ -1,0 +1,12 @@
+#!/bin/tcsh
+
+# Kill all OpenOffice tasks
+
+set anytokill=`ps -alwwx | grep X11.app | grep -v grep | grep -v auth`
+
+if "${anytokill}" != "" then
+	`ps -alwwx | grep X11.app | grep -v grep | grep -v auth | awk '{print "kill -9 " $2}'`
+else
+	echo Nothing to kill ..
+endif
+

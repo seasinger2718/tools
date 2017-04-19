@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby
+
+file_name = ARGV[0]
+if file_name 
+  file_size = File.size(file_name)/1024
+  puts sprintf("%-7dKB\t%s",file_size,file_name)  
+else
+  while gets
+    file_name = $_.strip.chomp
+    file_size = File.size(file_name)/1024
+    puts sprintf("%-7dKB\t%s",file_size,file_name)  
+  end
+end

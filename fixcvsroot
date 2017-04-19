@@ -1,0 +1,5 @@
+#
+# /bin/tcsh
+#
+cp /Users/tracy/Projects/cvstest/CVS/Root $1
+

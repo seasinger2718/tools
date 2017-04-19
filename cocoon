@@ -1,0 +1,5 @@
+#!/bin/sh
+
+pushd ${COCOON_DIST_HOME}
+${COCOON_DIST_HOME}/cocoon.sh servlet
+popd

@@ -1,0 +1,159 @@
+#!/usr/bin/env ruby
+
+DEBUG="FALSE"
+
+def run_cmd(cmd)
+  status = 0
+  if DEBUG == "TRUE"
+    puts cmd
+  else
+#    puts "Running #{cmd}"
+    result = `#{cmd}`
+    status = $?.exitstatus
+    puts result
+  end
+  status
+end 
+
+HABARI_VERSION=ENV['HABARI_VERSION'] || "5.1"
+HABARI_HOME=ENV['HABARI_HOME'] || "#{ENV['HOME']}/Everything/ActivitiesTracelink/habari"
+APIOBJECTS_HOME=ENV['APIOBJECTS_HOME'] || "#{ENV['HOME']}/Everything/ActivitiesTracelink/apiobjects"
+
+if "#{ARGV[0]}" == ""
+  TARGET_BASE_DIR = "#{ENV['HOME']}/Everything/ActivitiesTracelink/tracelink"
+else
+  TARGET_BASE_DIR = ARGV[0]
+end
+
+TRACELINK_DEPENDENT_JARS = [ ["habari-common-#{HABARI_VERSION}-SNAPSHOT.jar", HABARI_HOME, "common/target"], 
+                             ["habari-core-#{HABARI_VERSION}-SNAPSHOT.jar", HABARI_HOME, "core/target"], 
+                             ["habari-infrastructure-#{HABARI_VERSION}-SNAPSHOT.jar", HABARI_HOME, "infrastructure/target"],
+                             ["apiobjects-#{HABARI_VERSION}-SNAPSHOT.jar", APIOBJECTS_HOME, "apipublic/target"],
+                             ["apiobjects-private-#{HABARI_VERSION}-SNAPSHOT.jar", APIOBJECTS_HOME, "apiprivate/target"]
+                           ]
+
+TARGET_DIRS = ["src/webapp/WEB-INF/lib","target/server/default/deploy/EAR.ear/WAR.war/WEB-INF/lib"]
+
+GIT_MARKER = ".git"
+SVN_MARKER = ".svn"
+
+is_target_git = File.directory?(File.join(TARGET_BASE_DIR,GIT_MARKER))
+is_target_svn = File.directory?(File.join(TARGET_BASE_DIR,SVN_MARKER))
+
+if is_target_git 
+  #puts "#{TARGET_BASE_DIR} is a GIT directory" 
+elsif is_target_svn
+  #puts "#{TARGET_BASE_DIR} is a SVN directory"
+else 
+  puts "Unknown SCCS. Exiting ..."
+  exit 1 
+end
+
+# Phase 1 - figure out which jars have changed
+puts "Checking for changed jars for #{TARGET_BASE_DIR}"
+modified_jars_list = Array.new
+TRACELINK_DEPENDENT_JARS.each do |dependent_jar_def|
+  jar_name = dependent_jar_def[0]
+  home_dir_base = dependent_jar_def[1]
+  dir_part = dependent_jar_def[2]
+
+  source_file = File.expand_path(File.join(home_dir_base,dir_part,jar_name))
+
+  Dir.chdir(TARGET_BASE_DIR) do |dir|
+    TARGET_DIRS.each do |target_dir|
+      target_file = File.expand_path(File.join(target_dir,jar_name))
+      if File.file?(target_file)
+        puts "Comparing #{source_file} and #{target_file}"
+        cmd = "diffjars #{source_file} #{target_file}"
+        status = run_cmd(cmd)
+        if status == 1
+          modified_jars_list << dependent_jar_def
+        end
+      end
+    end
+  end
+
+end
+
+exit 0 if (modified_jars_list.size == 0)
+
+# Phase 2 - remove old versions
+puts "Removing old files in #{TARGET_BASE_DIR}"
+Dir.chdir(TARGET_BASE_DIR) do |target_base_dir|
+  modified_jars_list.each do |dependent_jar_def|
+    jar_name = dependent_jar_def[0]
+    home_dir_base = dependent_jar_def[1]
+    dir_part = dependent_jar_def[2]
+
+    source_file = File.join(home_dir_base,dir_part,jar_name)
+
+    Dir.chdir(TARGET_BASE_DIR) do |dir|
+      TARGET_DIRS.each do |target_dir|
+        target_file = File.join(target_dir,jar_name)
+        # Don't try to remove anything in ./target since SCCS doesn't own those directories
+        if File.file?(target_file) and (target_file !~ /^target/)
+          if is_target_git
+            cmd = "git rm #{target_file}"
+          elsif is_target_svn
+            cmd = "svn rm #{target_file}"
+          end
+          run_cmd(cmd)
+        end
+      end
+    end
+
+  end
+end
+
+# Phase 3 - commit delete changes
+puts "Committing changes in #{TARGET_BASE_DIR}"
+Dir.chdir(TARGET_BASE_DIR) do |dir|
+  if is_target_git
+    cmd = "git commit -m 'Remove old habari and apiobject jars'" 
+  elsif is_target_svn
+    cmd = "svn commit -m 'Remove old habari and apiobject jars'"
+  end
+  run_cmd(cmd)
+end
+
+# Phase 4 - copy new files and add to source control
+puts "Copying new files to #{TARGET_BASE_DIR} and adding to source control"
+modified_jars_list.each do |dependent_jar_def|
+  jar_name = dependent_jar_def[0]
+  home_dir_base = dependent_jar_def[1]
+  dir_part = dependent_jar_def[2]
+
+  source_file = File.join(home_dir_base,dir_part,jar_name)
+
+  TARGET_DIRS.each do |target_dir|
+    target_dir_partial = File.join(TARGET_BASE_DIR,target_dir)
+    if File.directory?(target_dir_partial)  
+      cmd = "cp -v #{source_file} #{target_dir_partial}"       
+      run_cmd(cmd)
+      if target_dir !~ /target/
+        Dir.chdir(TARGET_BASE_DIR) do |dir|
+          target_file = File.join(target_dir,jar_name)   
+          if is_target_git
+            cmd = "git add #{target_file}"
+          elsif is_target_svn
+            cmd = "svn add #{target_file}"
+          end
+          run_cmd(cmd)
+        end
+      end
+    end
+  end
+
+end
+
+# Phase 5 - commit updated files
+puts "Committing changes in #{TARGET_BASE_DIR}"
+Dir.chdir(TARGET_BASE_DIR) do |dir|
+  if is_target_git
+    cmd = "git commit -m 'Add new habari and apiobject jars'" 
+  elsif is_target_svn
+    cmd = "svn commit -m 'Add new habari and apiobject jars'"
+  end
+  run_cmd(cmd)
+end
+

@@ -1,0 +1,1 @@
+s/(c) 2005 Dynamic/(c) 2005-2006 Dynamic/

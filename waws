@@ -1,0 +1,125 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import subprocess
+import copy
+import datetime
+import dateutil.tz
+
+import boto3
+from random import choice
+from string import ascii_uppercase
+
+DEBUG_ENABLED = True
+ASSUME_ROLE_NAME_VAR = "ASSUME_ROLE_NAME"
+
+REMAINING_ARGS = copy.copy(sys.argv)
+REMAINING_ARGS.pop(0) # Get rid of command itself
+
+SUBSTITUTE_CMD = 'aws'
+
+DEFAULT_ASSUME_ROLE_NAME = "idpro-service-role"
+
+TEMPORARY_CREDENTIALS_CACHE_DIR=".aws"
+TEMPORARY_CREDENTIALS_CACHE_FILE_NAME="temporary_credentials_cache.json"
+
+def debug(msg):
+    if DEBUG_ENABLED:
+        print "DEBUG {0}".format(msg)
+        
+def get_random_string(total=8):
+    """Generate a random alpha string in lower case"""
+    return (''.join(choice(ascii_uppercase) for i in range(total))).lower()
+
+def get_account_id():
+    client =  boto3.client('sts')
+    response = client.get_caller_identity()
+    return response['Account']
+    
+def build_role_arn(role_name = ''):
+    return "arn:aws:iam::{0}:role/{1}".format(get_account_id(),role_name)
+
+def whereis(command_name = ''):
+    result = subprocess.check_output(["which", command_name]).strip()
+    return result
+    
+def assume_role(role_name):
+    client =  boto3.client('sts')
+    role_session_name = get_random_string()
+
+    kwargs = {}
+    kwargs['RoleArn'] = build_role_arn(role_name = role_name)
+    kwargs['RoleSessionName'] = role_session_name
+    
+    response = client.assume_role(**kwargs)
+    debug("assume_role {0}".format(repr(response)))
+    
+    results = {}
+    results['AccessKeyId'] = response['Credentials']['AccessKeyId']
+    results['SecretAccessKey'] = response['Credentials']['SecretAccessKey']
+    results['SessionToken'] = response['Credentials']['SessionToken']
+    return results
+
+def copy_environment_with_additions(additions = {}):
+    new_env = {}
+    for k in os.environ.keys():
+        new_env[k] = os.environ[k]
+    for env_var_name in additions:
+        new_env[env_var_name] = additions[env_var_name]
+    return new_env
+    
+def get_base_dir():
+    # Allow for Jenkins
+    if 'WORKSPACE' in os.environ:
+        base_dir = os.environ['WORKSPACE']
+    else:
+        base_dir = os.environ['HOME']
+    return base_dir
+        
+def get_credentials_cache_file_path():
+    full_path = os.path.join(get_base_dir(), 
+                            TEMPORARY_CREDENTIALS_CACHE_DIR,
+                            TEMPORARY_CREDENTIALS_CACHE_FILE_NAME)
+    return full_path
+    
+def get_utc_date_time(){
+    # Format compatible with return from aws functions
+    return datetime.datetime.now(dateutil.tz.tzutc())
+}
+
+def substitute_command(original_cmds = []):
+            
+    assume_role_name = None
+    if ASSUME_ROLE_NAME_VAR in os.environ:
+        assume_role_name = os.environ[ASSUME_ROLE_NAME_VAR]
+    else:
+        #throw new Error("Environment variable {0} must be defined ".format(ASSUME_ROLE_NAME_VAR))
+        #print "Warning: No environment variable {0} found. Skipping assume role".format(ASSUME_ROLE_NAME_VAR)
+        assume_role_name = DEFAULT_ASSUME_ROLE_NAME
+
+    new_env_settings = {}
+
+    if assume_role_name:
+        temporary_credentials = assume_role(assume_role_name)
+        new_env_settings["AWS_ACCESS_KEY_ID"] = temporary_credentials['AccessKeyId']
+        new_env_settings["AWS_SECRET_ACCESS_KEY"] = temporary_credentials['SecretAccessKey']
+        new_env_settings["AWS_SESSION_TOKEN"] = temporary_credentials['SessionToken']
+    
+    new_env = copy_environment_with_additions(new_env_settings)
+
+    aws_cmd = whereis(SUBSTITUTE_CMD)
+    cmds = []
+    cmds.append(aws_cmd) # Shouldn't be necessary but is
+    if assume_role_name:
+      for arg in original_cmds:
+        cmds.append(arg)
+      os.execve(aws_cmd,cmds,new_env)
+    else:
+        debug("substitute_command Don't know what to do with no active assume_role")
+    
+    
+#substitute_command(REMAINING_ARGS)
+
+
+ 

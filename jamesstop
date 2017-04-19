@@ -1,0 +1,4 @@
+#!/bin/tcsh
+
+expect -f /Users/tracy/Scripts/stopJamesExpect
+

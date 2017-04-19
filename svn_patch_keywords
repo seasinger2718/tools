@@ -1,0 +1,63 @@
+#!/usr/bin/ruby
+
+extensions = %w( rb rhtml yml css html cgi fcgi ico js txt)
+
+individual_files = %w( README Rakefile)
+
+individual_dirs = %w( script research )
+
+basedir = ARGV[0] || '/Users/tracy/Everything/Activities/phonebank'	
+
+original_dir = Dir.pwd
+
+=begin
+Dir.chdir(basedir)
+extensions.each do | extension |
+
+  files = Dir["**/*.#{extension}"]
+  files.each do |file| 
+    puts file
+  end
+  
+end
+
+Dir.chdir(original_dir)
+
+Dir.chdir(basedir)
+individual_files.each do | individual_file |
+  
+  files = Dir["**/#{individual_file}"]
+  files.each do |file| 
+    puts file
+  end
+
+end
+Dir.chdir(original_dir)
+
+Dir.chdir(basedir)
+individual_dirs.each do | individual_dir|
+  
+  files = Dir["#{individual_dir}/**/*"]
+  files.each do |file| 
+    puts file
+  end
+
+end
+
+Dir.chdir(original_dir)
+
+=end
+
+Dir.chdir(basedir)
+files = Dir["./**/*"]
+files.each do |file| 
+  if File.file?(file)
+    puts file
+    `grep '$Id:' #{file}`
+    status = $?
+    if status == 0
+      puts "#{file} has svn header"
+    end
+  end
+end
+Dir.chdir(original_dir)

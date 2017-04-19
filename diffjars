@@ -1,0 +1,122 @@
+#!/usr/bin/env ruby
+
+#
+# Compare two jar files - skip stuff that doesn't apply
+#
+# ruby ./diffjars jar1 jar2
+#
+
+if ARGV.size != 2
+  puts "Usage ruby ./diffjars jar1 jar2"
+  exit 1
+end
+
+`which jar`
+if $?.exitstatus != 0 
+  puts "Can't locate jar command"
+  exit 1
+end
+
+`which mktemp`
+if $?.exitstatus != 0 
+  puts "Can't locate mktemp command"
+  exit 1
+end
+
+`which diff`
+if $?.exitstatus != 0 
+  puts "Can't locate diff command"
+  exit 1
+end
+
+TEMP_DIR_BASE=`mktemp -d /tmp/temp.XXXXXXXX`.strip
+
+if ARGV.size == 2
+  working_dir = File.expand_path("#{ENV['HOME']}/Everything/ActivitiesTracelink/tracelink")
+else
+  working_dir = File.expand_path(ARGV[0])
+  ARGV.shift
+end
+
+status = 0
+
+Dir.chdir(working_dir) do |current_dir|
+
+  # diff -r dir1 dir2 
+  jar1 = ARGV[0]
+  jar2 = ARGV[1]
+
+  if jar1[0] == '/'
+    full_jar1 = jar1
+  else
+    full_jar1 = File.expand_path(current_dir + "/" + jar1)
+  end
+  if jar2[0] == '/'
+    full_jar2 = jar2
+  else
+    full_jar2 = File.expand_path(current_dir + "/" + jar2)
+  end
+
+  if File.file?(full_jar1) and File.file?(full_jar2)
+
+    jar1dir = "#{TEMP_DIR_BASE}/jar1"
+    jar2dir = "#{TEMP_DIR_BASE}/jar2"
+
+    `mkdir #{jar1dir}`
+    `mkdir #{jar2dir}`
+
+    `cp #{full_jar1} #{jar1dir}`
+    `cp #{full_jar2} #{jar2dir}`
+
+    Dir.chdir(jar1dir) do |dir|
+      base_jar1 = File.basename(jar1)
+      cmd = "jar -xf #{base_jar1}"
+      `#{cmd}`
+      cmd = "rm #{base_jar1}"
+      `#{cmd}`
+      # Remove other files
+      cmd = "rm #{File.expand_path(dir + '/META-INF/MANIFEST.MF')}"
+      `#{cmd}`
+      pom_props = `find . -name pom.properties`.strip
+      cmd = "rm #{pom_props}"
+      `#{cmd}`
+    end
+
+    Dir.chdir(jar2dir) do |dir|
+      base_jar2 = File.basename(jar2)
+      cmd = "jar -xf #{base_jar2}"
+      `#{cmd}`
+      cmd = "rm #{base_jar2}"
+      `#{cmd}`
+      # Remove other files
+      cmd = "rm #{File.expand_path(dir + '/META-INF/MANIFEST.MF')}"
+      `#{cmd}`
+      pom_props = `find . -name pom.properties`.strip
+      cmd = "rm #{pom_props}"
+      `#{cmd}`
+    end
+
+    cmd  = "diff -r #{jar1dir} #{jar2dir}"
+    results = `#{cmd}`
+    status = $?.exitstatus
+    if status == 0
+      puts "No differences found"
+    else
+      puts "***Differences found***"
+      #puts results
+    end
+
+  end
+
+  #puts "Please delete #{TEMP_DIR_BASE}"
+
+  `rm -rf #{TEMP_DIR_BASE}`
+
+end
+
+if status == 0
+  exit 0
+else
+  exit 1
+end
+

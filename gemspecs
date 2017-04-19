@@ -1,0 +1,12 @@
+#!/usr/bin/env ruby
+
+major_minor = `ruby_version major_minor`.strip.chomp
+if major_minor == '1.8'
+  require "rbconfig" 
+  gemspecs =  "#{Config::CONFIG['prefix']}/lib/ruby/gems/1.8/specifications"
+  exec "${X_EDITOR} #{gemspecs}"
+elsif major_minor == '1.9'
+  gems_base = %{#{RbConfig::CONFIG['rubylibprefix']}/gems/#{RbConfig::CONFIG['ruby_version']}}
+  gemspecs = %{#{gems_base}/specifications}
+  exec "${X_EDITOR} #{gemspecs}"
+end

@@ -1,0 +1,28 @@
+#!/usr/bin/env ruby
+
+svn_rev_filename = 'src/main/webapp/WEB-INF/svn_info.txt'
+
+`svn update`
+
+svn_info_output = `svn info`
+svn_rev = nil
+svn_info_output.split("\n").each do |line|
+  if line =~ /^Revision/
+    revision_line = line
+    #puts revision_line
+    svn_rev = revision_line.split(' ')[1];
+    svn_rev = svn_rev.strip.chomp
+    puts %{Existing svn_rev #{svn_rev}}
+  end
+end
+
+if svn_rev
+  new_svn_rev = svn_rev.to_i + 1
+  puts %{Existing new_svn_rev #{new_svn_rev}}
+  unless (ARGV.size > 0 and ARGV == '-t')
+    File.open(svn_rev_filename,'w') do |file|
+      file.puts %{Current SVN Revision : #{new_svn_rev}}
+    end
+  end
+  `svn commit -m "Stamped build with SVN version #{new_svn_rev}"`
+end

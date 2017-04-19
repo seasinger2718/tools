@@ -1,0 +1,5 @@
+#!/bin/sh
+
+export CATALINA_TEST_HOME=/Library/Tomcat/tomcat4.1.27.test
+echo $CATALINA_TEST_HOME
+

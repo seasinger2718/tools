@@ -1,0 +1,13 @@
+#!/usr/bin/ruby
+
+pid = `ps -ef | grep #{ARGV[0]} | grep -v grep | grep -v ruby | awk '{print $2}'`.strip
+if (pid != "")
+`kill -9 #{pid}` 
+end
+exit 0
+
+
+
+
+
+

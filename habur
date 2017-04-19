@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Force in aliases etc.
+if [ -e /etc/bash_ext ]
+then
+  source /etc/bash_ext
+fi
+if [ -e /etc/bash_ext_private ]
+then
+  source /etc/bash_ext_private
+fi
+
+sync_hab_to_work
+
+ssh ${WORK_SSH_NAME} 'habu'

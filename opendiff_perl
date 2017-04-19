@@ -1,0 +1,19 @@
+#! /usr/bin/env perl
+
+use strict;
+use warnings;
+
+use constant DIFF => qw(/usr/bin/opendiff);
+
+my $parameters = $#ARGV;
+my $file1 = $ARGV[$parameters - 1];
+my $file2 = $ARGV[$parameters];
+my $title1 = $ARGV[$parameters - 4];
+my $title2 = $ARGV[$parameters - 2];
+
+$ENV{TITLE} = "$title1  -   $title2";
+system(DIFF, $file1, $file2);
+
+#print "system " . DIFF . " $file1 $file2" . "\n";
+
+

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+(
+cat <<'POM_CONTENTS'  > pom.xml
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.lookout.component</groupId>
+  <artifactId>componentr</artifactId>
+  <version>0.1-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>component</name>
+  <url>http://maven.apache.org</url>
+
+  <dependencies>
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.8.2</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+   <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.5.1</version>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+        </configuration>
+      </plugin>
+      
+  		<!-- Maven Shade Plugin -->
+  		<plugin>
+  		  <groupId>org.apache.maven.plugins</groupId>
+  		  <artifactId>maven-shade-plugin</artifactId>
+  		  <version>2.3</version>
+  		  <executions>
+  		     <!-- Run shade goal on package phase -->
+  		    <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+  		    </execution>
+  		  </executions>
+  		</plugin>      
+    </plugins>
+  </build>
+
+</project>
+
+
+POM_CONTENTS
+)
+
+mkdir -p src/main/java/com/lookout/component
+mkdir -p src/test/java/com/lookout/component
+

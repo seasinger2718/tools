@@ -1,0 +1,141 @@
+#!/bin/bash
+#
+# mysqld	This shell script takes care of starting and stopping
+#		the MySQL subsystem (mysqld).
+#
+# chkconfig: - 64 36
+# description:	MySQL5 database server.
+# processname: mysqld
+# config: /usr/local/mysql5/mysql5.cnf
+# pidfile: /var/run/mysqld5/mysqld5.pid
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Source networking configuration.
+. /etc/sysconfig/network
+
+# TF 20060204 changes start
+#if [ -f /tmp/mysql5_debug.tmp ]; then
+#  rm -f /tmp/mysql5_debug.tmp
+#fi
+
+debug_msg(){
+#	echo "mysqld5: " `date` "$1" >> /tmp/mysql5_debug.tmp
+	a=1
+}
+
+debug_msg "mysqld5 invoked as $0"
+# TF 20060204 changes end 
+
+prog="MySQL5"
+
+# TF 20051019 to allow mysql5 and mysql < 5 to coexist
+
+basedir5="/usr/local/mysql5"
+datadir5="/home/mysql5data"
+logfile5="/var/log/mysqld5.log"
+rundir5="/var/run/mysqld5"
+pidfile5="$rundir5/mysql5.pid"
+lockfile5="/var/lock/subsys/mysqld5"
+sockfile5="/tmp/mysql5.sock"
+
+# TF 20051019 changes end
+
+start(){
+	debug_msg "mysqld5: start"
+	touch $logfile5
+	chown mysql:mysql $logfile5
+	chmod 0640  $logfile5
+	[ -x /sbin/restorecon ] && /sbin/restorecon $logfile5
+	if [ ! -d $datadir5/mysql ] ; then
+	    debug_msg "mysqld5: initializing new database " 
+	    action $"Initializing MySQL5 database: " $basedir5/scripts/mysql_install_db --defaults-file=$basedir5/mysql5.cnf
+	    ret=$?
+	    chown -R mysql:mysql $datadir5
+	    if [ $ret -ne 0 ] ; then
+		return $ret
+	    fi
+	fi
+	chown -R mysql:mysql $datadir5
+	chmod 0755 $datadir5
+	debug_msg "mysqld5: about to run safe_mysql" 
+	debug_msg "$basedir5/bin/safe_mysqld  --defaults-file=$basedir5/mysql5.cnf --pid-file=$pidfile5"
+	$basedir5/bin/safe_mysqld  --defaults-file=$basedir5/mysql5.cnf --pid-file=$pidfile5 >/dev/null 2>&1 &
+	ret=$?
+	debug_msg "mysqld5: safe_mysqld returns $ret" 
+	# Spin for a maximum of N seconds waiting for the server to come up.
+	# Rather than assuming we know a valid username, accept an "access
+	# denied" response as meaning the server is functioning.
+	if [ $ret -eq 0 ]; then
+	    STARTTIMEOUT=10
+	    while [ $STARTTIMEOUT -gt 0 ]; do
+		debug_msg "$basedir5/bin/mysqladmin --defaults-file=$basedir5/mysql5.cnf -uUNKNOWN_MYSQL_USER ping "
+		RESPONSE=`$basedir5/bin/mysqladmin --defaults-file=$basedir5/mysql5.cnf -uUNKNOWN_MYSQL_USER ping 2>&1` && break
+		echo "$RESPONSE" | grep -q "Access denied for user" && break
+		sleep 1
+		let STARTTIMEOUT=${STARTTIMEOUT}-1
+	    done
+	    if [ $STARTTIMEOUT -eq 0 ]; then
+                    echo "Timeout error occurred trying to start MySQL5 Daemon."
+                    debug_msg "Failed to start mysqld5"
+                    action $"Starting $prog: " /bin/false
+            else
+                    debug_msg "Started mysqld5 successfully"
+                    action $"Starting $prog: " /bin/true
+            fi
+	else
+            debug_msg "Failed to start mysqld5"
+    	    action $"Starting $prog: " /bin/false
+	fi
+	[ $ret -eq 0 ] && touch $lockfile5 
+	return $ret
+}
+
+stop(){
+	debug_msg "mysqld5: stop"
+        /bin/kill `cat $pidfile5   2> /dev/null ` > /dev/null 2>&1
+	ret=$?
+	if [ $ret -eq 0 ]; then
+	    action $"Stopping $prog: " /bin/true
+	else
+    	    action $"Stopping $prog: " /bin/false
+	fi
+	[ $ret -eq 0 ] && rm -f $lockfile5 
+	[ $ret -eq 0 ] && rm -f $sockfile5
+	return $ret
+}
+ 
+restart(){
+    stop
+    sleep 2
+    start
+}
+
+condrestart(){
+    [ -e $lockfile5 ] && restart || :
+}
+
+# See how we were called.
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  status)
+    status mysqld
+    ;;
+  restart)
+    restart
+    ;;
+  condrestart)
+    condrestart
+    ;;
+  *)
+    echo $"Usage: $0 {start|stop|status|condrestart|restart}"
+    exit 1
+esac
+
+exit $?

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+if [[ X$1 != X ]] ; then
+  sleep $1
+fi
+

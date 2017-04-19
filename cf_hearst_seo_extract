@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby -w
+
+if ARGV.size != 1
+  puts "Usage cf_hearst_seo_extract.rb <month number> < <input file>  > <output file> "
+  exit 1
+end
+
+separator = ","
+month_number = ARGV[0].to_i
+month_number_string = %{"#{month_number}"}
+header_rows = 1
+
+total_rows = 0 
+while (input_line = STDIN.gets)
+    line =  input_line.strip.chomp
+    next if line == '' or line.nil?
+    total_rows += 1
+    if total_rows <= header_rows
+      puts line
+      next
+    end
+    fields = line.split(separator)
+    if fields[4] == month_number_string
+      puts line
+    end
+end    

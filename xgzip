@@ -1,0 +1,36 @@
+#!/usr/bin/env ruby
+
+debug = false
+remove = false
+
+if (ARGV.size > 0)
+  ARGV.each do |arg|
+    if arg =~ /\-d/i
+      debug = true
+      next
+    end
+    if arg =~ /\-r/i
+      remove = true
+      next
+    end
+    input_file = arg
+    output_file = "#{input_file}.gz"
+    `rm -rf #{output_file}`
+    cmd = %{gzip -c #{input_file} > #{output_file} }
+    puts cmd
+    puts `#{cmd}` unless debug
+    if remove
+      cmd = "rm -f #{input_file}"
+      puts cmd
+      puts `#{cmd}` unless debug
+    end
+    cmd = "chmod a-w #{input_file}"
+    puts cmd
+    puts `#{cmd}` unless debug
+    cmd = "chmod a-w #{output_file}"
+    puts cmd
+    puts `#{cmd}` unless debug
+  end
+else
+  puts "Usage: xgzip <input_file> [<input_file>]"
+end

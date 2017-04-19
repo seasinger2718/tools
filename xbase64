@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+
+require 'net/http'
+require 'rexml/document'
+require "base64"
+
+file_name = ARGV[0]
+
+
+contents = File.read(file_name)
+
+
+# extract event information
+doc = REXML::Document.new(contents)
+
+base64 = ""
+
+doc.elements.each('artifact/Artifact64') do |ele|
+	base64 = ele.text
+end
+
+
+original = Base64.decode64(base64)
+
+puts original
+

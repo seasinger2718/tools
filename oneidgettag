@@ -1,0 +1,4 @@
+#!/bin/tcsh
+
+# Get a tagged OneID file set from svn
+svn co file:///Users/tracy/Projects/svnrepository/Docs/OneID/tags/$1

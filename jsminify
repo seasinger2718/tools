@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+
+if ARGV.size == 0
+  puts "#{File.basename(__FILE__)} <file name>"
+else
+  input_file = ARGV[0]
+  minifier = "#{ENV['SCRIPTS']}/yuicompressor-2.4.2.jar"
+  cmd = "java -jar #{minifier} #{input_file} "
+  #puts cmd
+  Kernel.exec(cmd)
+end

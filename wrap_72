@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+
+input_file = "#{ENV['HOME']}/tmp/unfiltered.txt"
+output_file = "#{ENV['HOME']}/tmp/filtered.txt"
+
+file_contents = ""
+STDIN.each_line do |line|
+  cleaned_line = line.sub(/^\s+/,'')
+  cleaned_line = "\n" if cleaned_line == ''
+  file_contents << cleaned_line
+end
+File.open(input_file, 'w') {|f| f.write(file_contents) }
+
+puts `fmt -w 62 #{input_file}`
+
+

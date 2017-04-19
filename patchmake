@@ -1,0 +1,12 @@
+#!/usr/local/bin/ruby
+
+patch_name = ARGV[0]
+cmd = "svn diff > #{ENV['PATCHDIR']}/#{patch_name}.patch"
+#puts cmd
+result = `#{cmd}`
+#puts result
+cmd = "echo #{patch_name} > #{ENV['PATCHDIR']}/last_patch"
+#puts cmd
+result = `#{cmd}`
+#puts result
+

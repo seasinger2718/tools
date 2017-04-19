@@ -1,0 +1,37 @@
+#!/usr/bin/env ruby
+
+M2_ROOT="#{`cd ; pwd`.strip}/.m2"
+M2_REPOSITORY="#{M2_ROOT}/repository"
+M2_INDEX="#{M2_ROOT}/index"
+
+#puts M2_REPOSITORY
+#puts M2_INDEX
+
+puts "Generating ~/.m2/repository cross-reference index"
+
+index_file_unsorted = M2_INDEX + ".tmp"
+find_cmd = "find #{M2_REPOSITORY} -name \\*\\.jar"
+File.open(index_file_unsorted,'w') do |output_file|
+	all_jars = `#{find_cmd}`.split
+	all_jars.each {|jar| 
+		base_jar_name = File.basename(jar)
+		jar_classes = `jar tf #{jar}`.split
+		jar_classes.each {|jar_class| 
+			unless jar_class[-1] == "/"
+				base_class_name_elements =  jar_class.split("/")
+				base_class_name = base_class_name_elements[-1].sub(".class","")
+				index_entry = "#{base_class_name}|#{base_jar_name}|#{jar_class}" 
+				output_file.puts index_entry 
+				#puts index_entry
+				print "."
+			end	
+		}
+	}
+end
+
+puts "\nsorting ..."
+`sort #{index_file_unsorted} >#{M2_INDEX} ; rm #{index_file_unsorted}`
+puts "finished ..."
+
+
+

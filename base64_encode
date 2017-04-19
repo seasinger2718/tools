@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+
+require 'base64'
+
+val = ARGV[0]
+
+puts Base64.encode64(val)
+

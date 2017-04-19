@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+<<<<<<< HEAD
+# firefox-single
+
+# Run a standard Firefox setup, but disable single application locking
+
+=======
+# Run a standard Firefox setup, but disable single application locking
+>>>>>>> 96cb590ebfb859d28c23d6a1d1fefb665b560d6e
+/Applications/Web/Firefox.app/Contents/MacOS/firefox -P default --no-remote &

@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+gem 'RedCloth'
+require 'redcloth'
+puts RedCloth.new( ARGF.read ).to_html

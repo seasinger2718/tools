@@ -1,0 +1,16 @@
+#!/bin/sh
+
+export TINDERBOXEN=/Users/tracy/Document/Tinderboxen
+
+pushd $TINDERBOXEN
+
+#open /Applications/Office/Tinderbox/Tinderbox.app BigBook
+
+if [ -z "$*" ]; then
+	open /Applications/Office/Tinderbox/Tinderbox.app ProductNotes
+else
+	open /Applications/Office/Tinderbox/Tinderbox.app WebPipes
+fi
+
+popd
+

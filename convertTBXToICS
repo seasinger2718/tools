@@ -1,0 +1,7 @@
+#!/bin/sh
+
+MODIFYDATE=`date "+%Y%m%dT%H%M%S"`
+INPUTFILE=/Users/tracy/AllFiles/Personal/Tinderboxen/ToDoExport/ToDoRawICS
+OUTPUTFILE=/Users/tracy/Library/Calendars/TracyToDo.ics
+awk -v MODIFYDATE=$MODIFYDATE -f /Users/tracy/Scripts/convertToICS.awk $INPUTFILE >$OUTPUTFILE
+

@@ -1,0 +1,9 @@
+#!/bin/tcsh
+set actualDir = $1
+echo Actualdir $actualDir
+set parentDir = $actualDir:h
+echo parentDir $parentDir
+set repository = "`echo $parentDir | sed -e 's/\/Users\/tracy\/Projects\/LONJavaSrc\///'`"
+echo $repository
+echo $repository > $actualDir/Repository
+

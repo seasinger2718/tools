@@ -1,0 +1,67 @@
+#!/usr/bin/env ruby
+
+# Must be jruby 
+#  jruby-openssl >= 0.9.5
+#  octocrypt = 0.3.17
+
+
+require 'openssl'
+require 'octocrypt'
+
+
+keys = [' .... ', ' .... '] # Backup encryption keys
+keys = ["u9bFacaksi7K8PCudkvgGeQR5g0WuhTsLmG0lqGcgYe5OK93O8ZWw0aZVtcxUCZRuO0wQ2W8wpQ7AWBKoPLi6FluhAtGzz0/lktlmm201+dGi/fqe2wB9THMlje2ILBFd1bD5q+R46NB5XLnVEDQh3MAAwq9pGRBmvNnQ3sczTG+feUGWqKJ3v0iMVatTukcYc2cy8OJxpQe2H614HR542h3Gm+ZTIKTb5ZEuRc7V+U0CAYrjDMfgcf9kuo6ZQim3MjAY18ZetllOgyXoasJmE3FPwHi+azPdZoefjbnS9oZLYtDhdhpFOBvWih1TPJTYOpfznN3RLZio8mi0NCceQ==", "VWj22LkgIwXCpC8sAaaeHLpw8LiIV0h49XJe0aKbel/NdBobo86tX4zu3LmNr9WJgswenlQZnjhzijG84snVeMxYfE8BUhXW0iJoeflKDCHfD3rWbwLkvCe9QqQBnYC9Tn7YixcL/k68ofzjLcAkej89RX5T1XL1gQOY3gkzXda3ySvI92Z7xPc8QWxJMy3bqLiesptJIyOPyBmx8VlnvkEVohk5Mi+wbQbJvrzOzL/I6v+1XOUsut87MsG+qSKNni5Wclw6ipShF6NbMFnAL553l9m1S8lwhD8hdsuG3KenMgj1Wu2SqMjFgs7O7nfMDgfcKRVNy0wSm+9BGNGQ2g=="]
+
+# initializers/octocrypt
+# Octocrypt.configure(
+#     Octocrypt::Constants::MASTER_KEY_HMAC_PHASE, # Octocrypt::Constants::NO_ENCRYPTION_PHASE
+#     'AES-256-CFB',
+#     configatron.encryption.secrets.map { |key| Base64.decode64(key) }
+# )
+Octocrypt.configure(
+    Octocrypt::Constants::MASTER_KEY_HMAC_PHASE, # Octocrypt::Constants::NO_ENCRYPTION_PHASE
+    'AES-256-CFB',
+    keys.map { |key| Base64.decode64(key) }
+)
+
+data = "Some data to encrypt"
+
+
+# Backup::AwsBaseWriteChannel  @encrypt = Octocrypt::Encryptor.new
+encrypter = Octocrypt::Encryptor.new
+
+encrypted_data = ''
+
+# Backup::AwsBaseWriteChannel encrypted = @encrypt.update (@zstream ? @zstream.compress(data) : data)
+encrypted_data << encrypter.update(data)
+# Backup::AwsBaseWriteChannel encrypted = @encrypt.final
+encrypted_data <<  encrypter.final
+# Backup::AwsBaseWriteChannel @scheme = @encrypt.scheme
+scheme = encrypter.scheme
+
+puts scheme
+
+# octocypt gem
+#original = Octocrypt.decrypt(encrypted, scheme)
+decrypted_data = Octocrypt.decrypt(encrypted_data, scheme)
+
+puts decrypted_data
+
+
+input_file = File.open("/Users/tflynn/tmp/3bba0860-818c-441a-86c2-e3e294b2ce14", "rb") # File containing  compressed call log
+encrypted_data = input_file.read
+puts "encrypted_data.length #{encrypted_data.length}"
+input_file.close
+
+scheme = "AES-256-CFB:2:1:DVcqP8CZE_2w8FiA5koqMw==:yyyif2YU40eUJ7Gr9UBdC9-cZ3NL2tIwtmziZDu46fE="
+
+decrypter = Octocrypt::Decryptor.new(scheme)
+decrypted_data  = ""
+decrypted_data << decrypter.update(encrypted_data)
+decrypted_data << decrypter.final
+
+puts "decrypted_data.length #{decrypted_data.length}"
+output_file = File.open("3bba0860-818c-441a-86c2-e3e294b2ce14.gz",'wb')
+output_file.write decrypted_data
+output_file.close
+

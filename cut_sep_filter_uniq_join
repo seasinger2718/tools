@@ -1,0 +1,27 @@
+#!/usr/bin/env ruby -w
+
+unique_entries = {}
+separator = ARGV[0].gsub(/'/,'').gsub(/"/,'')
+filter_length = ARGV[1].to_i
+while (input_line = STDIN.gets)
+    line =  input_line.strip.chomp
+    next if line == '' or line.nil?
+    cut_at = line.index(separator)
+    line = line[0,cut_at]
+    if line.length == filter_length
+      unique_entries[line] = true
+    end
+end
+
+first_entry = true
+unique_entries.keys.sort.each do |key|
+  if first_entry
+    first_entry = false
+  else
+    print ','
+  end
+  print key
+end
+
+print "\n"
+

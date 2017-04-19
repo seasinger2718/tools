@@ -1,0 +1,10 @@
+#!/usr/bin/env ruby
+
+M2_ROOT="#{`cd ; pwd`.strip}/.m2"
+M2_REPOSITORY="#{M2_ROOT}/repository"
+M2_INDEX="#{M2_ROOT}/index"
+
+search_term = "#{ARGV[0]}"
+grep_cmd = "grep -i '#{search_term}' #{M2_INDEX}"
+#puts grep_cmd
+puts `#{grep_cmd}`

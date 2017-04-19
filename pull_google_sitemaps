@@ -1,0 +1,42 @@
+#!/bin/bash
+
+######
+# Values than can be edited
+######
+
+# Base URL from which to pull the sitemap files
+
+BASE_URL=http://www.helium.com
+
+#Change this !! - Working directory - This directory will receive a copy of all the sitemap files
+WORKING_DIRECTORY=`pwd`/data
+
+echo "WORKING_DIRECTORY = ${WORKING_DIRECTORY}"
+
+######
+# End of values than can be edited
+######
+
+CURRENT_DIRECTORY=`pwd`
+
+if [[ -e ${WORKING_DIRECTORY} ]]; then
+  rm -f ${WORKING_DIRECTORY}/*
+fi
+
+cd ${WORKING_DIRECTORY}
+
+
+# Get the main sitemap file
+echo "`date` Retrieving 'sitemap.xml' to `pwd`"
+wget -q ${BASE_URL}/sitemap.xml
+
+
+SITEMAP_FILES=`grep "<loc" sitemap.xml  | sed s\!\</loc\>\!\!g | sed s/\<loc\>//g`
+
+for sitemap_file in ${SITEMAP_FILES}
+do
+  echo "`date` Retrieving $sitemap_file to `pwd`"
+  wget -q ${sitemap_file}
+done
+
+#cd ${CURRENT_DIRECTORY}

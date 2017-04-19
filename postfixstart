@@ -1,0 +1,3 @@
+#!/bin/tcsh
+
+sudo /System/Library/StartupItems/Postfix/Postfix start

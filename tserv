@@ -1,0 +1,21 @@
+#!/bin/bash
+
+BASE_DIR=`pwd`
+HABARI_VERSION="5.1"
+SNAPSHOT="-SNAPSHOT"
+JAR_FILE="habari-server-${HABARI_VERSION:-5.1}${SNAPSHOT}.jar"
+LOG_FILE=habari.log
+# -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005
+# -Xdebug -Xrunjdwp:server=y,transport=dt_socket,address=5005,suspend=n" 
+# DEBUG_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005" 
+
+CONFIGURATION_FILE="${1:-habari.yml}"
+
+CMD="rm -rf ./${LOG_FILE}"
+echo "$CMD"
+$CMD
+
+
+CMD="java -cp ./target/${JAR_FILE} ${DEBUG_OPTIONS} tracelink.habari.ToolRunner $*"
+echo "$CMD"
+$CMD

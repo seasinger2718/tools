@@ -1,0 +1,82 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+gem 'highline','1.4.0'
+require 'highline/import'
+
+# while (ch = STDIN.getc)
+#  puts "ch #{ch.inspect}"
+# end
+
+class HighLine
+  public :get_character
+end
+
+# input_buffer = ''
+# input = HighLine.new
+# readmore = true
+# 
+# while readmore
+#     character = input.get_character
+#     case character
+#     when 9
+#       $stdout.puts "TAB "
+#       $stdout.flush
+#       readmore = false
+#     when ?\r, ?\n
+#       $stdout.print "\n"
+#       $stdout.flush
+#       readmore = false
+#     else
+#       $stdout.print character.chr
+#       $stdout.flush
+#       input_buffer << character.chr
+#     end
+# end
+
+# while (character = input.get_character) != ?\e do
+#   print "#{c.chr.inspect}"
+# end
+
+class ReadUtils
+  
+  class << self
+   
+    def read_to_line_interrupt(input_buffer = nil)
+      
+      input_buffer ||= ''
+      input = HighLine.new
+      readmore = true
+      while readmore
+        character = input.get_character
+        case character
+        when 9
+          return [:tab,input_buffer]
+        when ?\r, ?\n
+          return [:eol,input_buffer]
+        else
+          $stdout.print character.chr
+          $stdout.flush
+          input_buffer << character.chr
+        end
+      end
+    end
+    
+    def read_line_with_tab_completion
+      input_buffer = ''
+      while true
+        line_type, line_data = ReadUtils.read_to_line_interrupt(input_buffer)
+        if line_type == :tab
+          
+        else
+        
+          break
+        end
+      end
+  end
+  
+end
+
+$stdout.print '> '
+line_read = ReadUtils.read_to_line_interrupt
+puts "\n" + line_read.inspect

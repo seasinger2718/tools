@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+
+# !/usr/local/bin/ruby
+
+active_dir = `pwd`
+base_dir_name = `basename #{active_dir}`.strip
+
+Dir.chdir("..") { 
+  full_zip_name = Time.now.strftime("#{base_dir_name}-%Y%m%d%H%M.zip")
+  #full_zip_name = Time.now.strftime("#{base_dir_name}-%Y%m%d.zip")
+  
+  #puts full_zip_name
+  #puts Dir.pwd
+  #puts "zip -r #{full_zip_name} #{base_dir_name}"
+  options = '-r'
+  #if File.file?(full_zip_name)
+  #  options = options + "f"
+  #end
+  cmd = "zip #{options} #{full_zip_name} #{base_dir_name} -i \\\*.rb \\\*.rhtml \\\*.xml \\\*.html \\\*.css \\\*.erb \\\*.yml \\\*.rake \\\*.rjs \\\*.txt .git"
+  #puts cmd
+  `#{cmd}`
+  #mv = "mv #{full_zip_name} \"/Volumes/3rd Party Data/Snapshots\""
+<<<<<<< HEAD
+  mv = "mv #{full_zip_name} \"/Users/tflynn/Everything/Resources/Archives\""
+=======
+  mv = "mv #{full_zip_name} \"/Users/tracy/Everything/Resources/Archives\""
+>>>>>>> 96cb590ebfb859d28c23d6a1d1fefb665b560d6e
+  #puts mv
+  `#{mv}`
+  #result = `#{cmd}`
+  #puts result
+}

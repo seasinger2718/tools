@@ -1,0 +1,27 @@
+#!/usr/bin/env ruby
+
+utils_list = %w(
+  wi
+  sgi
+  sgu
+  hrg
+  gemlist
+  ggemlist
+  gems
+  gemspecs
+  gemrdoc
+  gemsrc
+  uninstall_helium_requirements
+  uninstall_mack
+  uninstall_datamapper
+  pushit
+  pullit
+  graketask
+  mserv
+  )
+  
+#zip_file_name = "dev_utils-#{Time.now.strftime('%Y%m%d')}.zip"
+zip_file_name = "dev_utils-#{Time.now.strftime('%Y%m%d')}-#{sprintf('%04d',rand(9999))}.zip"
+File.delete(zip_file_name) if File.exists?(zip_file_name)
+puts "Creating #{zip_file_name}"
+puts `zip #{zip_file_name} #{utils_list.join(' ')}`

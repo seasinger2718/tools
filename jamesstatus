@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if [ "`ps -alxww | grep /Library/James | grep /Library/James/bin/phoenix-loader.jar | grep -c -v grep`" = "1" ]; then
+	echo James running
+else
+	echo James stopped
+fi

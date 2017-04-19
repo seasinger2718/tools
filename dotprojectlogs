@@ -1,0 +1,4 @@
+#!/bin/sh
+
+tail -20 /Users/tracy/Temp/logs/dotprojectmailhandler.log
+

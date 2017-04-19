@@ -1,0 +1,3 @@
+#!/bin/tcsh
+
+setenv PATH ${JRUBY_HOME}/bin:${PATH}

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+<<<<<<< HEAD
+# firefox-test
+
+# Run a test Firefox setup, but disable single application locking
+
+/Applications/Web/FirefoxTest.app/Contents/MacOS/firefox -P FirefoxTest --no-remote &
+
+=======
+# Run a test Firefox setup, but disable single application locking
+/Applications/Web/FirefoxTest.app/Contents/MacOS/firefox -P FirefoxTest --no-remote -jssh &
+>>>>>>> 96cb590ebfb859d28c23d6a1d1fefb665b560d6e

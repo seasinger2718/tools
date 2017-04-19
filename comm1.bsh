@@ -1,0 +1,11 @@
+#!/bin/bash
+smtp_server=smtp.1and1.com
+local_name=govhandle.com
+(
+read line 
+echo $line >/dev/tty
+echo "HELO $local_name"
+read line
+echo $line >/dev/tty
+
+) </dev/tcp/$smtp_server/25 >/dev/tcp/$smtp_server/25

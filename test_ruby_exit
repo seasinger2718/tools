@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+
+puts "Exiting with non-zero code"
+exit 5

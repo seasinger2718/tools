@@ -1,0 +1,43 @@
+#!/bin/tcsh
+
+set inputfile="$1"
+set inputfiledir="$inputfile:h"
+set inputfilename="$inputfile:t"
+set inputfilenameprefix="$inputfilename:r"
+set inputfilenamesuffix="$inputfilename:e"
+
+set cmdname="$0"
+set shortcmdname="$cmdname:t"
+
+set perlcmd="${cmdname}"".pl"
+
+if ( $shortcmdname == "eolmactounix" ) then
+	set outsuffix=".unix";
+else if ( $shortcmdname == "eolmactodos" ) then
+	set outsuffix=".dos";
+else if ( $shortcmdname == "eolunixtomac" ) then
+	set outsuffix=".mac";
+else if ( $shortcmdname == "eolunixtodos" ) then
+	set outsuffix=".dos";
+else if ( $shortcmdname == "eoldostounix" ) then
+	set outsuffix=".unix";
+else if ( $shortcmdname == "eoldostomac" ) then
+	set outsuffix=".mac";
+else 
+	echo "unknown conversion type "
+	exit(1)
+	
+endif
+
+if ( -d original ) then
+    ;
+else
+  mkdir original
+endif
+
+mv ${inputfile} original
+set originalfile="original/${inputfile}"
+set outputfile="${inputfile}"
+
+perl "${perlcmd}" <"${originalfile}" >"${outputfile}"
+

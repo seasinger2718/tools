@@ -1,0 +1,33 @@
+#!/usr/bin/env ruby
+
+home_dir=ENV['HOME']
+
+file=ARGV[0]
+
+if ARGV.size > 1
+  source_dir=ARGV[1] 
+else
+  source_dir="#{home_dir}/Everything/Startup/mybin"
+end
+if ARGV.size > 2
+  dest_dir=ARGV[2]
+else
+  dest_dir="#{home_dir}/bin"
+end
+
+src_file = "#{source_dir}/#{file}"
+dest_file = "#{dest_dir}/#{file}"
+
+if File.exist?(dest_file)
+  if File.ftype(dest_file) == 'link'
+    puts "#{dest_file} is already linked. Skipping"
+  else
+    cmd="/bin/ln -s #{src_file} #{dest_file}"
+    puts cmd
+    puts `#{cmd}`
+  end
+else
+  cmd="/bin/ln -s #{src_file} #{dest_file}"
+  puts cmd
+  puts `#{cmd}`
+end

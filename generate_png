@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+
+total_images = 2000
+
+1.upto(total_images) do |image_num| 
+
+  file_num = sprintf("%04d",image_num)
+  `convert -background lightblue -fill blue -font "Arial" -pointsize 36 label:'Image #{image_num}' image-#{file_num}.png`
+  
+end
+

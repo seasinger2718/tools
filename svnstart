@@ -1,0 +1,12 @@
+#!/bin/sh
+
+svn_status=`ps -alwwx |  grep -v grep | grep -c svnserve`
+
+if [ "$svn_status" -eq "0" ]; then
+   echo "Starting svnserve ..."
+   /usr/local/bin/svnserve -d -r /Users/tracy/.svnrepository/Activities
+else
+   echo "svnserve already running ..."
+fi
+
+

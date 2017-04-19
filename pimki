@@ -1,0 +1,8 @@
+#!/bin/sh
+
+PIMKI_DIR=/usr/local/lib/ruby/gems/1.8/gems/Pimki-1.7.092
+PIMKI_STORAGE_DIR=/Users/tracy/AllFiles/Wikis/Pimki/storage
+
+pushd $PIMKI_DIR
+ruby pimki.rb --port=2501 --storage=$PIMKI_STORAGE_DIR
+popd

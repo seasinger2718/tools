@@ -1,0 +1,65 @@
+#!/usr/bin/env scala -feature
+
+import java.io.{File,FileWriter}
+import scala.language.reflectiveCalls
+
+def using[A <: {def close() : Unit}, B](resource: A)(f: A => B): B =
+  try f(resource) finally resource.close()
+
+def writeStringToFile(file: File, data: String, appending: Boolean = false) =
+  using(new FileWriter(file, appending))(_.write(data))
+
+object Dispatcher {
+  def main(args: Array[String]) {
+    new SBTProject(
+      args(0),
+      if (args.size > 1) Option(args(1)) else None,
+      if (args.size > 2) Option(args(2)) else None
+    )
+  }
+}
+
+class SBTProject() {
+
+  val directories = List(
+    "src/main/resources",
+    "src/main/scala",
+    "src/main/java",
+    "src/test/resources",
+    "src/test/scala",
+    "src/test/java",
+    "project"
+    )
+  
+  val files = List (
+    ("build.sbt",None),
+    ("project/Build.scala",None),
+    (".gitignore",Some("""target/
+                        |""".stripMargin))
+  )
+  
+  
+  var projectName = null.asInstanceOf[String]
+  var packageBase = null.asInstanceOf[String]
+  var projectBase = null.asInstanceOf[String]
+  
+  def this(projectName: String, packageBaseOpt: Option[String], projectBaseOpt: Option[String] = None) {
+    this()
+    this.projectName = projectName
+    this.packageBase = "%s.%s".format(packageBaseOpt.getOrElse("com.tsftsf"),this.projectName).toLowerCase
+    this.projectBase = projectBaseOpt match {
+      case Some(prjBase) => new File(prjBase).getAbsolutePath
+      case None => new File(System.getProperty("user.dir"),this.projectName).getAbsolutePath
+    }
+    directories.foreach(directory => {new File(this.projectBase,directory).mkdirs})
+    files.foreach(fileEntry => {
+      val fileName = fileEntry._1
+      val contents = fileEntry._2
+      writeStringToFile(new File(this.projectBase,fileName), contents.getOrElse(""), false)
+    })  
+    
+  }
+
+}
+
+Dispatcher.main(args)

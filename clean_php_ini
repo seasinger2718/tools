@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+
+input_lines = nil
+File.open(ARGV[0]) do |file|
+  input_lines = file.readlines
+end
+
+output_lines = []
+
+input_lines.each do |input_line|
+  next if input_line =~ /^;/
+  input_line = input_line.strip.chomp
+  next if input_line == ''
+#  next if input_line =~ /^\s+/
+  next if input_line =~ /^\[/
+  output_lines << input_line
+end
+
+output_lines = output_lines.sort
+
+output_lines.each do |output_line|
+  puts output_line
+end
+

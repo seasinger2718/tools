@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+pushd /Users/tflynn/Backups/SourceCodeRepositories
+logfileName=backup.log
+ssh tflynn@bigpoppa "./backups/list_last_backups" >last_backups
+while read backupFileName
+do
+baseBackupFileName=`basename ${backupFileName}`
+dateStamp=`date`
+echo "${dateStamp} About to backup ${backupFileName}" >> ${logfileName}
+rsync -a tflynn@bigpoppa:${backupFileName} . 
+#rsync -a ${baseBackupFileName} root@184.106.178.182:/root/backups
+# rsync -a tflynn@bigpoppa:${backupFileName} root@184.106.178.182:/root/backups
+echo "${dateStamp} Backed up ${backupFileName}" >> ${logfileName}
+done <last_backups
+
+popd
+

@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+#set -x
+
+SOURCE_DIR="${HOME}/bin"
+
+MY_BIN_DIR="$(pwd)"
+MY_BIN_DIR_NAME="$(basename ${MY_BIN_DIR})"
+
+# Find file differences
+
+only_in_mybin=$(diff --brief -r "${SOURCE_DIR}/" "${MY_BIN_DIR}/" | grep $MY_BIN_DIR_NAME | cut -d' ' -f4 | xargs | grep -v '^\.' ) 
+
+only_in_bin=$(diff --brief -r "${SOURCE_DIR}/" "${MY_BIN_DIR}/" | grep -v $MY_BIN_DIR_NAME | cut -d' ' -f4 | xargs | grep -v '^\.' ) 
+
+for source_file in $only_in_bin
+do
+  if [[ ! -h "${SOURCE_DIR}/${source_file}" ]]; then
+    if [[ -f "${SOURCE_DIR}/${source_file}" ]]; then
+      cp -v "${SOURCE_DIR}/${source_file}" "${MY_BIN_DIR}"
+    fi
+  fi
+done
+
+SOURCE_DIR_BACKUP_DIR="${SOURCE_DIR}/.backup"
+mkdir -p "${SOURCE_DIR_BACKUP_DIR}"
+
+for source in `ls -1 "${SOURCE_DIR}"`
+do
+  full_source_name="${SOURCE_DIR}/${source}"
+  if [[ ! -h "${full_source_name}" ]]; then
+    if [[ -f "${full_source_name}" ]]; then
+      cp -v "${full_source_name}" "${SOURCE_DIR_BACKUP_DIR}"
+      rm "${full_source_name}"
+    fi
+  fi
+done
+
+for actual in `ls -1 "${MY_BIN_DIR}"`
+do
+  full_actual_name="${MY_BIN_DIR}/${actual}"
+  full_target_name="${SOURCE_DIR}/${actual}"
+  # Unlink target if present  as a symbolic link
+  # so we always get the latest from the repo
+  if [[ -h "${full_target_name}" ]]; then
+    unlink "${full_target_name}"
+  fi
+  if [[ ! -h "${full_actual_name}" ]]; then
+    if [[ -f "${full_actual_name}" ]]; then
+      ln -s "${full_actual_name}" "${full_target_name}" 
+    fi
+  fi 
+done
+
+
+
+
+
+
+
+
+

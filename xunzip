@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+suffix=$(random_str)
+xx_dir="xx.${suffix}"
+
+mkdir -p ${xx_dir}
+
+cp $1  ${xx_dir}
+
+cd ${xx_dir}
+
+unzip $1
+
+echo "Unpacked to cd ${xx_dir}"

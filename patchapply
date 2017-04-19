@@ -1,0 +1,12 @@
+#!/usr/local/bin/ruby
+
+if ARGV[0] 
+  patch_name = ARGV[0]
+else
+  patch_name = `cat #{ENV['PATCHDIR']}/last_patch`.strip
+end
+cmd = "patch -p0 < #{ENV['PATCHDIR']}/#{patch_name}.patch"
+puts cmd
+result = `#{cmd}`
+puts result
+

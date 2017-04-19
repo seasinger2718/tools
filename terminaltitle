@@ -1,0 +1,65 @@
+#!/usr/bin/env ruby
+
+#!/bin/bash
+# cwd=`pwd`
+# if ( pwd | grep git >/dev/null) then
+#   prefix=":git"
+# else
+#   prefix=""
+# fi
+# shortname=`cat /etc/shortname`
+# default_title=${shortname}${prefix}:`basename $cwd`
+# title=${1:-${default_title}}
+# echo -n -e "\033]0;$title\007"
+# 
+
+cwd = Dir.getwd
+
+if cwd =~ /git/
+  prefix = "git"
+else
+  prefix = ''
+end
+
+if File.exists?('/etc/shortname')
+  shortname = `cat /etc/shortname`.chomp.strip
+else
+  shortname = ''
+end
+
+basename = `basename #{cwd}`.chomp.strip
+
+if basename == "git" 
+  if prefix == "git"
+    default_title = "#{shortname}:#{basename}"
+  else
+    default_title = "#{shortname}:#{prefix}:#{basename}"
+  end
+else
+  if prefix == "git"
+    default_title = "#{shortname}:#{prefix}:#{basename}"
+  else
+    default_title = "#{shortname}:#{basename}"
+  end
+end
+
+default_title = default_title.chomp.strip
+
+if File.exists?("#{cwd}/.git")  
+  branches = `git branch`
+  branches.split("\n").each do | branch_info |
+    if branch_info =~ /^\*/
+      branch_status, branch_name = branch_info.split(" ")
+      default_title = default_title + ":#{branch_name.chomp.strip}"
+      break
+    end
+  end
+end
+title = ARGV.size == 0 ? default_title : ARGV[0]
+
+# Do the ugly to change the tab text and window title text
+#puts "\033]0;#{title}\007"
+# Do this to suppress extra carriage return characters
+STDOUT.write "\033]0;#{title}\007"
+
+  

@@ -1,0 +1,4 @@
+#!/bin/tcsh
+setenv LIGHTTPD_ROOT /Users/tracy/Sites/lighttpd
+lighttpd -D -f $LIGHTTPD_ROOT/conf/lighttpd.conf
+#lighttpd -f $LIGHTTPD_ROOT/conf/lighttpd.conf

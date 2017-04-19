@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+
+res = `gem list | grep mack`
+res.each do |line|
+ l = line.split(" ").first
+ system "sudo gem uninstall #{l} -a"
+end

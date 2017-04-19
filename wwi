@@ -1,0 +1,31 @@
+#!/bin/sh
+
+fileToFind=$1
+
+if [ X$1 == X ]
+then
+  exit 1
+fi
+
+if [ X$2 == X-v ]
+then
+  verbose=1
+else
+  verbose=0
+fi
+
+searchDirs=`echo $PATH | sed s/:/\ /g`
+for searchDir in $searchDirs
+do
+  if [ -f $searchDir/$fileToFind ]
+  then
+    echo $searchDir/$fileToFind
+    if [ $verbose == 0 ]
+    then
+      break
+    fi
+  fi
+done 
+
+exit 0
+

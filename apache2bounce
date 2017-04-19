@@ -1,0 +1,9 @@
+#!/bin/sh
+
+APACHECTL="/Library/Apache2/bin/apachectl"
+
+echo Restarting Apache2 gracefully ...
+
+sudo $APACHECTL graceful
+
+

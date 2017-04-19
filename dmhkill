@@ -1,0 +1,5 @@
+#!/bin/tcsh
+
+set dotprojectpid = `ps -axww | grep -i dotproject | grep -i java | awk '{print $1}'`
+echo "Killing dotproject mail handler running as $dotprojectpid" 
+kill -9 $dotprojectpid

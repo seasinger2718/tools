@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+date > ~/Temp/lingon_just_ran.log
+

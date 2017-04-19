@@ -1,0 +1,17 @@
+#!/bin/bash
+
+export TINDERBOXEN=/Users/tracy/Document/Tinderboxen
+
+pushd $TINDERBOXEN
+
+
+if [ -z "$1" ] then
+	TBX=BigBook
+else
+	TBX="$*"
+fi
+
+open /Applications/Office/Tinderbox/Tinderbox.app $TBX
+
+popd
+

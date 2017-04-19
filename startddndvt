@@ -1,0 +1,16 @@
+#!/bin/sh
+
+pid_file=/var/tmp/ddndvt.pid
+
+if [ -e $pid_file ]; then
+   echo "DDN Development server already running ..."
+else
+  echo "Starting DDN Development server ..."
+  pushd /Users/tracy/Everything/Activities/DDN_DVT >/dev/null
+  (ruby script/server)  2>&1 >> log/run.log  &
+  echo $! > /var/tmp/ddndvt.pid
+	sleep 5
+	#tail log/run.log
+	popd >/dev/null
+fi
+

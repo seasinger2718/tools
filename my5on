@@ -1,0 +1,5 @@
+#!/bin/bash
+
+pushd /usr/local/mysql-5.1.39
+sudo ./bin/mysqld_safe &
+popd

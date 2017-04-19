@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby -w
+
+cut_at = ARGV[0].to_i
+while (input_line = STDIN.gets)
+    line =  input_line.strip.chomp[0,cut_at - 1]
+    puts line
+end

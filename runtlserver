@@ -1,0 +1,46 @@
+#!/bin/bash
+
+# Script to run a generic dropwizard-style server
+
+# Parameters
+# $1 - Name of server - e.g. 'habari-server' - Used for JAR file and log file naming
+# $2 - Main class
+# $3 - Debug port
+# $4 - Name of configuration file
+
+BASE_DIR=`pwd`
+SERVER=$1
+MAIN_CLASS=$2
+DEBUG_PORT=$3
+CONFIGURATION_FILE=$4
+
+JAR_VERSION="${JAR_VERSION:-5.1}"
+SNAPSHOT="-SNAPSHOT"
+JAR_FILE="./target/${SERVER}-${JAR_VERSION}${SNAPSHOT}.jar"
+if [ ! -e ${JAR_FILE} ]
+then
+  JAR_FILE="server/${JAR_FILE}"
+fi
+
+#JAVA_OPTS="${JAVA_OPTS:- -Xms256m -Xmx1000m -XX:MaxPermSize=256}"
+JREBEL_JAR="${JREBEL_JAR:-/opt/jars/jrebel.jar}"
+
+DEBUG_ON=${DEBUG_ON:-true}
+if [ ${DEBUG_ON} == 'true' ] ; then
+  DEBUG_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=${DEBUG_PORT}"
+fi
+
+JRON=${JRON:-true}
+if [ ${JRON} == 'true' ] ; then
+  DEBUG_OPTIONS="${DEBUG_OPTIONS} -javaagent:${JREBEL_JAR} -DHOME_ROOT=${HOME}"
+fi
+
+CMD="rm -rf *log*"
+echo "$CMD"
+$CMD
+
+CMD="java -cp ${JAR_FILE} ${JAVA_OPTS} ${ADDITIONAL_JAVA_OPTS}  ${DEBUG_OPTIONS} ${MAIN_CLASS} server ${CONFIGURATION_FILE}"
+echo "$CMD"
+($CMD >>all.log 2>&1) &
+
+

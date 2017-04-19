@@ -1,0 +1,11 @@
+#!/bin/sh
+
+osascript ~/Scripts/icalstop
+
+#~/Scripts/convertTBXToICS
+
+~/Scripts/tagICS Maddy /Users/tracy/AllFiles/Personal/WebSites/DAV/Calendars/Maddy.ics
+
+osascript ~/Scripts/icalstart
+
+

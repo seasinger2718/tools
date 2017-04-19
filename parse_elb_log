@@ -1,0 +1,79 @@
+#!/usr/bin/env ruby
+
+require 'digest/md5'
+
+ORIGINAL_FILE_SPEC=ARGV[0]
+
+LOG_LINE_REGEX=/^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+\"([^"]+)\"\s+\"([^"]+)\"\s+(\S+)\s+(\S+).*/
+
+URL_REGEX=/^(\S+)\s+(\S+)\s+(\S+).*/
+
+Dir.glob(ORIGINAL_FILE_SPEC) do |log_file_name|
+  File.foreach(log_file_name) do |raw_input_line|
+    parts = []
+ 
+    input_md5 = Digest::MD5.hexdigest(raw_input_line)
+ 
+    matches = LOG_LINE_REGEX.match(raw_input_line)
+    parts << [:ts, matches[1]]
+    parts << [:elb, matches[2]]
+    parts << [:cp, matches[3]]
+    parts << [:bp, matches[4]]
+    parts << [:rqpt, matches[5]]
+    parts << [:bpt, matches[6]]
+    parts << [:rtp, matches[7]]
+    parts << [:esc, matches[8]]
+    parts << [:bsc, matches[9]]
+    parts << [:rb, matches[10]]
+    parts << [:sb, matches[11]]
+    url_matches = URL_REGEX.match(matches[12])
+    parts << [:hm, url_matches[1]]
+    parts << [:url, url_matches[2]]
+    parts << [:hp, url_matches[3]]
+    parts << [:ua, matches[13]]
+    parts << [:sc, matches[14]]
+    parts << [:sp, matches[15]]
+    
+    output_sections = parts.map {|p| 
+      name = p[0].to_s
+      value = p[1].gsub(/ /,'_')
+      "#{name}:#{value}"
+    }
+    content = ''
+    content << parts[0,11].map {|p| p[1]}.join(' ')
+    content << " \"#{parts[11][1]} #{parts[12][1]} #{parts[13][1]}\" "
+    content << "\"#{parts[14][1]}\" "
+    content << parts[15..16].map {|p| p[1]}.join(' ')
+    
+    # output_md5 = Digest::MD5.hexdigest(content)
+    #
+    # keep_going = true
+    # i = 0
+    # mismatch = false
+    # while (keep_going)
+    #   if raw_input_line[i] != content[i]
+    #     puts "X " + raw_input_line[0,i+1]
+    #     puts "X " + content[0,i+1]
+    #     keep_going = false
+    #     mismatch = true
+    #   end
+    #   if i = raw_input_line.size
+    #     keep_going = false
+    #   end
+    #   i = i + 1
+    # end
+    # if mismatch
+    #   puts "Different:"
+    #   puts raw_input_line
+    #   puts content
+    # end
+    #
+    # #output_sections.unshift("im:#{input_md5} om:#{output_md5}")
+      puts output_sections.join(' ')
+  
+  end
+
+  #break
+  
+end
+

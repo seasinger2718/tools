@@ -1,0 +1,9 @@
+#!/bin/sh
+
+TAG=$1
+INPUTFILE=$2
+OUTPUTFILEDIR=/Users/tracy/Library/Calendars
+OUTPUTFILE=$OUTPUTFILEDIR/`basename $INPUTFILE`
+
+awk -f /Users/tracy/Scripts/fixMozICS-2.awk  tag=$TAG $INPUTFILE >$OUTPUTFILE
+

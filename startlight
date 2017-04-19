@@ -1,0 +1,13 @@
+#!/bin/sh
+
+pid_file=/var/tmp/lighttpd.pid
+
+if [ -e $pid_file ]; then
+   echo "Lighttpd server already running ..."
+else
+  echo "Starting Lighttpd server ..."
+  (/usr/local/sbin/lighttpd -D -f /Users/tracy/Everything/Activities/DDN_DVT/config/lighttpd.conf
+	)  2>&1 >> /Users/tracy/Everything/Activities/DDN_DVT/log/lighttpd_run.log  &
+  echo $! > $pid_file
+fi
+

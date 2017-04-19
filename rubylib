@@ -1,0 +1,12 @@
+#!/usr/bin/env ruby
+
+major_minor = `ruby_version major_minor`.strip.chomp
+if major_minor == '1.8'
+  require "rbconfig" 
+  rubylib =  "#{Config::CONFIG['rubylibdir']}"
+  exec "${X_EDITOR} #{rubylib}"
+elsif major_minor == '1.9'
+  puts RbConfig::CONFIG['prefix']
+  rubylib =  "#{RbConfig::CONFIG['rubylibdir']}"
+  exec "${X_EDITOR} #{rubylib}"
+end

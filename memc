@@ -1,0 +1,71 @@
+#!/usr/local/bin/ruby
+
+require 'optparse'
+
+debug = false
+cache_size = 64
+base_port = 11211
+default_ip = '127.0.0.1'
+if File.exists?('/usr/local/bin/memcached')
+  default_cmd = '/usr/local/bin/memcached'
+elsif File.exists?('/opt/local/bin/memcached')
+  default_cmd = '/opt/local/bin/memcached'
+else
+  puts "Can't find memcached. Exiting ..."
+  exit 1
+end
+
+number_cache_instances = 1
+reserved_ports_start = 11220
+kill = false
+
+opts = OptionParser.new
+opts.on("-d", "--debug") {|val| debug = true}
+opts.on("-k", "--kill") {|val| kill = true}
+opts.on("-sSIZE", "--size SIZE") {|val| cache_size = val.to_i}
+opts.on("-pPORT", "--port PORT") {|val| base_port = val.to_i}
+opts.on("-iIP","--ip IP") {|val| default_ip = val}
+opts.on("-cCMD","--cmd CMD") {|val| default_cmd = val}
+opts.on("-nNUM","--num NUM") {|val| number_cache_instances = val.to_i}
+
+opts.on("-h", "--help") {|val| puts "memc [-d|--debug] [-sSIZE|--size SIZE] [-pPORT|--port PORT] [-iIP|--i IP] [-cCMD|--cmd CMD] [-nNUM|--num NUM]"; exit }
+opts.parse(ARGV)
+
+if debug
+  number_cache_instances = 1 
+end
+
+# Kill memcached if it's running already
+
+memcached_status_cmd = 'ps -alwwwx |  grep -i memcached | grep -v java | grep -v grep | grep -v ps '
+memcached_statuses = `#{memcached_status_cmd}`
+memcached_statuses.split("\n").each do |memcached_status|
+  if memcached_status and memcached_status != ""
+    memcached_pid = memcached_status.split[1]
+    reserved_port = false
+    cmd_elements = memcached_status.split
+    if cmd_elements.index('-p')
+      port = cmd_elements[cmd_elements.index('-p') + 1].to_i
+      reserved_port = port < reserved_ports_start ? false : true
+      if memcached_pid and (not reserved_port)
+        kill_cmd = "kill -9 #{memcached_pid}"
+        kill_result = `#{kill_cmd}`
+        sleep(1)
+      end
+    end
+  end  
+end
+
+exit if kill
+
+# Run the straight memcache demon. If in debug mode, run at the console with full logging
+1.upto(number_cache_instances) do |instance_number|
+  if debug
+    cmd = "#{default_cmd} -vv -m #{cache_size} -p #{base_port + instance_number - 1} -l #{default_ip}"
+  else
+    cmd = "#{default_cmd} -d -m #{cache_size} -p #{base_port + instance_number - 1} -l #{default_ip}"
+    #cmd = "#{default_cmd} -d -m #{cache_size} -p #{base_port + instance_number - 1}"
+  end
+  memcache_cmd_status = `#{cmd}`
+end
+puts `#{memcached_status_cmd}` unless debug

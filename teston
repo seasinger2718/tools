@@ -1,0 +1,8 @@
+#!/bin/sh
+
+CONFIGFILE=/Users/tracy/Config/apache/test-httpd.conf
+
+HTTPD="/Library/Apache2/bin/httpd"
+sudo $HTTPD -f $CONFIGFILE -k start
+
+

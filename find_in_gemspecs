@@ -1,0 +1,20 @@
+#!/usr/bin/env ruby
+
+grep_option = 'H'
+if ARGV.size == 2
+  grep_option = ARGV.shift
+  if grep_option == '-l'
+    grep_option = 'l'
+  end
+end
+
+major_minor = `ruby_version major_minor`.strip.chomp
+if major_minor == '1.8'
+  require "rbconfig" 
+  gemspecs =  "#{Config::CONFIG['prefix']}/lib/ruby/gems/1.8/specifications"
+  exec %{find #{gemspecs} -type f -exec grep -#{grep_option} -i #{ARGV[0]} {} \\;}
+elsif major_minor == '1.9'
+  gems_base = %{#{RbConfig::CONFIG['rubylibprefix']}/gems/#{RbConfig::CONFIG['ruby_version']}}
+  gemspecs = %{#{gems_base}/specifications}
+  exec %{find #{gemspecs} -type f -exec grep -#{grep_option} -i #{ARGV[0]} {} \\;}
+end

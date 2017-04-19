@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+
+file_name = ARGV[0]
+
+line_cnt = 0
+
+File.open(file_name).each do |line|
+  line_cnt = line_cnt + 1
+  next if line_cnt <= 3
+  next if line =~ /^\+/
+  line = line.strip.chomp
+  fields = line.split('|')
+  output_fields = []
+  fields.each do |field|
+    next if field == ''
+    field = field.strip.chomp
+    output_fields << field
+  end
+  #puts output_fields.inspect
+  output_line = ''
+  first_field = true
+  output_fields.each do |field|
+    if first_field
+      first_field = false
+    else
+      output_line << ','
+    end
+    output_line << field
+  end
+  puts output_line
+end
+

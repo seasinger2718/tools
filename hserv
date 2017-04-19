@@ -1,0 +1,6 @@
+#!/bin/bash
+
+CONFIGURATION_FILE="${1:-habari.yml}"
+export JAVA_OPTS="-Xms256m -Xmx1000m -XX:MaxPermSize=512m -Dservername=habariserver" 
+runtlserver habari-server tracelink.habari.APIRunner 5005 ${CONFIGURATION_FILE}
+

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+BASE_DIR=`pwd`
+HABARI_VERSION="4.5"
+SNAPSHOT="-SNAPSHOT"
+JAR_FILE="habari-server-${HABARI_VERSION:-4.4}${SNAPSHOT}.jar"
+
+CONFIGURATION_FILE="${1:-tracy.yml}"
+shift
+
+CMD="java -cp ./target/${JAR_FILE} tracelink.habari.ToolRunner changemgmttool ${CONFIGURATION_FILE} $@"
+
+echo "$CMD"
+
+$CMD

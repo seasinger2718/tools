@@ -1,0 +1,6 @@
+#!/bin/bash
+
+CONFIGURATION_FILE="${1:-apiserver.yml}"
+export JAVA_OPTS="-Dservername=apiserver"
+runtlserver apiserver tracelink.habari.APIRunner 5006 ${CONFIGURATION_FILE}
+

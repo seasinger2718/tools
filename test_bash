@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+echo "DEBUG: $0"
+# echo "DEBUG: shopt"
+# shopt
+# echo "DEBUG: enabling alias expansion"
+# shopt -s expand_aliases
+# echo "DEBUG: aliases"
+# alias
+# 
+alias
+

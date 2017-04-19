@@ -1,0 +1,14 @@
+#!/usr/bin/env ruby -w
+
+output_list = ''
+first_time = true
+while (input_line = STDIN.gets)
+    if first_time
+        first_time = false
+    else
+        output_list += ','
+    end
+    output_list += input_line.strip.chomp
+end
+
+puts output_list

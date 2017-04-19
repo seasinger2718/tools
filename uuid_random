@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+
+# 
+# export PATH=/usr/local64g135/bin:${PATH}
+# pushd ~/Everything/Activities/uunique_ids 2>&1 >/dev/null
+# ruby ./bin/uuid_random.rb
+# popd 2>&1 >/dev/null
+
+gem 'uuidtools'
+require 'uuidtools'
+require 'digest/sha1'
+
+raw_uuid = ::UUIDTools::UUID.random_create.to_s
+raw_uuid = ::UUIDTools::UUID.random_create.to_s
+sha1 = ::Digest::SHA1.hexdigest(raw_uuid)
+
+if ARGV.size == 1
+  if ARGV[0] == "-u"
+    puts %{#{raw_uuid}}
+  elsif ARGV[0] == "-s"
+    puts %{#{sha1}}
+  end
+else
+  puts %{(uuid) #{raw_uuid}}
+  puts %{(sha1) #{sha1}}
+end

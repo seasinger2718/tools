@@ -1,0 +1,9 @@
+#!/bin/bash
+
+BASEDIR=${BASEDIR:-${HOME_ROOT}/Everything/ActivitiesTracelink/tracelink}
+cd ${BASEDIR}
+
+BASE_DIR=`pwd`
+rm -f ./target/server/default/log/*
+
+./bin/jboss.sh

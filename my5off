@@ -1,0 +1,5 @@
+#!/bin/bash
+
+pushd /usr/local/mysql-5.1.39
+ ./bin/mysqladmin -u root shutdown
+popd

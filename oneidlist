@@ -1,0 +1,9 @@
+#!/bin/tcsh
+
+# List OneID trunk
+if ("$1" == "") then
+	svn list file:///Users/tracy/Projects/svnrepository/Docs/OneID/trunk
+else 
+	svn list file:///Users/tracy/Projects/svnrepository/Docs/OneID/trunk/$1
+endif
+

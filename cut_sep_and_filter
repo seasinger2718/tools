@@ -1,0 +1,13 @@
+#!/usr/bin/env ruby -w
+
+separator = ARGV[0].gsub(/'/,'').gsub(/"/,'')
+filter_length = ARGV[1].to_i
+while (input_line = STDIN.gets)
+    line =  input_line.strip.chomp
+    cut_at = line.index(separator)
+    line = line[0,cut_at]
+    if line.length == filter_length
+      puts line
+    end
+end
+

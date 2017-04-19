@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+active_branch=''
+cwd=`pwd`
+if [[ -d "${cwd}/.git" ]]
+then
+  active_branch=`git branch | grep "^\*" | sed -e "s/^\* //"`
+fi
+echo $active_branch

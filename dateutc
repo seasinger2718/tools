@@ -1,0 +1,10 @@
+#!/usr/bin/env ruby
+
+fs = "%Y-%m-%dT%H:%M:%S.%6NZ"
+fs1 = "%H:%M:%S"
+t = Time.now.utc
+t_ukraine = Time.now.utc.localtime("+02:00")
+t_boston = Time.now.utc.localtime("-05:00")
+t_sf = Time.now.utc.localtime("-08:00")
+
+puts "#{t.strftime(fs)} BOS #{t_boston.strftime(fs1)} SF #{t_sf.strftime(fs1)} UKR #{t_ukraine.strftime(fs1)}"

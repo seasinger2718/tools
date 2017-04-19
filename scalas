@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+java -Dsbt.main.class=sbt.ScriptMain \
+     -Dsbt.boot.directory=${HOME}/.sbt/boot \
+     -jar /usr/local/jars/sbt-launch.jar "$@"
+

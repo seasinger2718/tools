@@ -1,0 +1,9 @@
+#!/usr/local/bin/ruby
+
+Dir.chdir("#{ENV['PATCHDIR']}") do |dir|
+  patches = `ls *.patch`.split
+  patches.each do |patch|
+    puts patch.gsub(/\.patch$/,'')
+  end
+end
+

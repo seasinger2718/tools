@@ -1,0 +1,16 @@
+#!/bin/tcsh
+
+# Services to stop before backups
+
+set logfile = /Users/tracy/Temp/logs/crontasks.log
+
+date >>$logfile
+#echo /Library/StartupItems/Apache2/Apache2 stop >>$logfile
+#/Library/StartupItems/Apache2/Apache2 stop
+#echo /Library/StartupItems/Tomcat/Tomcat stop >>$logfile
+#/Library/StartupItems/Tomcat/Tomcat stop
+echo /Library/StartupItems/MySQL/MySQL stop >>$logfile
+/Library/StartupItems/MySQL/MySQL stop
+
+#/Library/StartupItems/James/James stop
+

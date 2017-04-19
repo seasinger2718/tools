@@ -1,0 +1,7 @@
+#!/bin/sh
+
+APACHECTL="/Library/Apache2/bin/apachectl"
+
+sudo $APACHECTL start
+
+

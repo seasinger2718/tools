@@ -1,0 +1,142 @@
+#!/usr/bin/env ruby
+
+require 'fileutils'
+
+if ARGV.size == 0
+  puts "Usage: fam [ -d | -i | -r ] <string / name to match>"
+  exit 1
+end
+
+DEBUG = FALSE
+
+# Look in familiar places
+HOME_DIR =  ENV['HOME']
+
+# Trailing slash in directory name means search the entire tree. No slash - just directory
+FAMILIAR_PLACES = [ '/System/Library/LaunchAgents',
+                    '/System/Library/LaunchDaemons',
+                    '/System/Library/Preferences',
+                    '/System/Library/PreferencePanes',
+                    '/Library/LaunchAgents',
+                    '/Library/LaunchDaemons',
+                    '/Library/LaunchAgents',
+                    '/Library/LaunchDaemons',
+                    '/Library/Preferences',
+                    '/Library/PreferencePanes',
+                    '/Library/Receipts',
+                    '/Library/Fonts',
+                    '/Library/Caches',
+                    '/Applications',
+                    '/Applications/Financial',
+                    '/Applications/Office',
+                    '/Applications/Office/iWork',
+                    '/Applications/Original',
+                    '/Applications/Programming',
+                    '/Applications/Utilities',
+                    '/Applications/Tools',
+                    '/Applications/Web',
+                    '/usr/bin',
+                    '/usr/local',
+                    '/usr/local/bin',
+                    '/usr/local/src',
+                    '/usr/local/docs',
+                    '/private/var/db/receipts',
+                    "#{HOME_DIR}/Library/Application\ Support",
+                    "#{HOME_DIR}/Library/LaunchAgents",
+                    "#{HOME_DIR}/Library/LaunchDaemons",
+                    "#{HOME_DIR}/Library/Preferences",
+                    "#{HOME_DIR}/Library/PreferencePanes",
+                    "#{HOME_DIR}/Library/Fonts",
+                    "#{HOME_DIR}/Library/Caches",
+                    "#{HOME_DIR}/Documents",
+                    "#{HOME_DIR}/Everything/Downloads/downloads",
+                    "#{HOME_DIR}/Everything/Downloads/installed",
+                    "#{HOME_DIR}/Everything/Downloads/investigations",
+                    "#{HOME_DIR}/Everything/Activities",
+                    "#{HOME_DIR}/Everything/ActivitiesHelium",
+                    "#{HOME_DIR}/Everything/Activities/experiments",
+                    "#{HOME_DIR}/Everything/ActivitiesHelium/experiments",
+                     ]
+
+class DirSearcher 
+
+  def initialize(starting_dir,match_regexp,options)
+    @starting_dir = starting_dir
+    @match_regexp = match_regexp
+    @options = options
+  end
+  
+  def search_dir
+    @options[:recurse] = @starting_dir =~ /\/$/ ? true : false  unless @options[:recurse]
+    puts "@options[:recurse] #{@options[:recurse].inspect}" if DEBUG
+    Dir.chdir(@starting_dir) do |current_dir|
+      Dir.glob('*') do |dir_entry|
+        fq_dir_entry = "#{current_dir}/#{dir_entry}"
+        puts "Examining #{fq_dir_entry}" if DEBUG
+        if dir_entry =~ @match_regexp
+          print "Matched " if DEBUG
+          puts fq_dir_entry
+          if @options[:delete_dir]
+            puts "FileUtils.rm_rf(#{fq_dir_entry})" if DEBUG
+            if @options[:interactive]
+              print "Delete #{fq_dir_entry}? "
+              yesno = STDIN.gets
+              if yesno =~ /^y/i
+                puts "Deleting #{fq_dir_entry}"
+                FileUtils.rm_rf(fq_dir_entry)
+              end
+            else
+              puts "Deleting #{fq_dir_entry}"
+              FileUtils.rm_rf(fq_dir_entry)
+            end
+          end
+        end
+        if File.exists?(dir_entry) and File.directory?(dir_entry) and (@options[:recurse])
+          puts "About to search recursively in #{fq_dir_entry}" if DEBUG
+          DirSearcher.new(fq_dir_entry,@match_regexp, @options).search_dir
+        end
+      end
+    end
+  end
+  
+  
+end
+
+total_args_removed = 0
+options = {}
+if ARGV.length > 1
+  ARGV.each do |arg|
+    if arg == '-d'
+      options[:delete_dir] = true
+      total_args_removed += 1
+    end
+    if arg == '-i'
+      options[:interactive] = true
+      total_args_removed += 1
+    end
+    if arg == '-r'
+      options[:recurse] = true
+      total_args_removed += 1
+    end
+  end
+end
+
+if total_args_removed > 0
+  total_args_removed.times do |t|
+    ARGV.shift
+  end
+end
+
+to_match = ARGV[0]
+
+what_to_match = Regexp.new(to_match,true)
+
+puts "Trying to match #{to_match}" if DEBUG
+
+FAMILIAR_PLACES.each do |familiar_place|
+  puts "Peeking in #{familiar_place}" if DEBUG
+  if File.exists?(familiar_place)
+    DirSearcher.new(familiar_place,what_to_match,options).search_dir
+  end
+end
+

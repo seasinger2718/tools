@@ -1,0 +1,15 @@
+#!/bin/tcsh
+
+# Services to restart after backups
+
+set logfile = /Users/tracy/Temp/logs/crontasks.log
+
+date >>$logfile
+#echo /Library/StartupItems/Apache2/Apache2 start >>$logfile
+#/Library/StartupItems/Apache2/Apache2 start
+#echo /Library/StartupItems/Tomcat/Tomcat start >>$logfile
+#/Library/StartupItems/Tomcat/Tomcat start
+echo /Library/StartupItems/MySQL/MySQL start >>$logfile
+/Library/StartupItems/MySQL/MySQL start
+
+#/Library/StartupItems/James/James start

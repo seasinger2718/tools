@@ -1,0 +1,684 @@
+#!/usr/bin/env bash
+
+#set -x
+
+#
+# Crude AEB / SDP Automation
+#
+#
+
+aeb-log() {
+  dt_stamp=$(date +%Y%m%d-%H%M%S)
+  echo "${dt_stamp} $1" >> ${AEB_LOG_FILE}
+  echo "${dt_stamp} $1"
+}
+
+aeb-clean-name() {
+  echo "$1" | tr '_' '-'
+}
+
+log_dt_stamp=$(date +%Y%m%d-%H%M%S)
+export AEB_LOG_FILE="$(pwd)/aeb_commands_${log_dt_stamp}.log"
+clean_name=$(aeb-clean-name "$(basename `pwd`)")
+export AEB_ARTIFACT_BASE_NAME="${clean_name}"
+export AEB_APPLICATION_NAME="${AEB_ARTIFACT_BASE_NAME}"
+export AEB_PRODUCT_TAG=consumer
+
+# Internal switches
+# AEB_USE_SDP_NAMING - default is true
+export AEB_USE_SDP_NAMING=true
+# AEB_DRY_RUN - default is false
+export AEB_DRY_RUN=false
+# AEB_EBT_DRY_RUN - default is false
+export AEB_EBT_DRY_RUN=false
+
+aeb-vars() {
+  env | grep '^AEB' | sort
+}
+
+aeb-clean() {
+  for zip_file in `find . -name \*\.zip`
+  do
+    rm $zip_file
+  done
+  for log_file in `find . -name \*\.log`
+  do
+    rm $log_file
+  done
+  
+  if [ "$AEB_WORKSPACE" != "" ]; then
+    if [ -d ${AEB_TMPDIR} ]; then
+      rm -rf ${AEB_TMPDIR}
+    fi
+  fi
+  for tmp_dir in `find . -type d -name tmp`
+  do
+    rm -rf $tmp_dir
+  done
+  aeb-log "aeb-clean"
+}
+
+
+aeb-reset() {
+    
+  # save_var_list="AEB_LOG_FILE AEB_ARTIFACT_BASE_NAME AEB_PRODUCT_TAG"
+  # for save_var in ${save_var_list}
+  # do
+  #   cmd="export SAVE_${save_var}=\$${save_var}"
+  #   eval ${cmd}
+  # done
+
+  aeb_vars="$(env | grep '^AEB' | cut -d'=' -f1 )"
+  for aeb_var in ${aeb_vars}
+  do
+    unset ${aeb_var}
+  done  
+  
+  # for save_var in ${save_var_list}
+  # do
+  #   cmd="export ${save_var}=\$SAVE_${save_var}"
+  #   eval ${cmd} &>/dev/null
+  # done
+
+  #aeb-vars
+  
+  # Handles case of reset without reload
+  log_dt_stamp=$(date +%Y%m%d-%H%M%S)
+  export AEB_LOG_FILE="$(pwd)/aeb_commands_${log_dt_stamp}.log"
+  clean_name=$(aeb-clean-name "$(basename `pwd`)")
+  export AEB_ARTIFACT_BASE_NAME="${clean_name}"
+  export AEB_APPLICATION_NAME="${AEB_ARTIFACT_BASE_NAME}"
+  export AEB_PRODUCT_TAG=consumer
+  
+  export AEB_USE_SDP_NAMING=true
+  export AEB_DRY_RUN=false
+  
+  aeb-log "aeb-reset"
+  
+}
+
+aeb-aws-account-id() {
+  export AEB_AWS_ACCOUNT_ID=$(aws s3 ls | grep elasticbeanstalk-us-west-2 | cut -d' ' -f3 | cut -d'-' -f5 | xargs)
+}
+
+aeb-set-product-tag() {
+  export AEB_PRODUCT_TAG="${1}"
+}
+
+aeb-git-version() {
+  git rev-parse --short HEAD
+}
+
+aeb-md5-file() {
+  if [ "$1" != "" ]; then
+    if [[ "${OSTYPE}" =~ ^darwin.* ]]; then
+      md5 $1 | cut -d'=' -f2 | xargs
+    else
+      md5sum  $1 | cut -d' ' -f1 | xargs
+    fi
+  else
+    echo ""
+  fi
+}
+
+# Look in various places for the root of the config directories
+aeb-locate-root() {
+  # z/hybrid/dev
+  # dev/deployer
+  # deployer/dev
+  if [ -d "z/hybrid/${AEB_DEPLOYMENT_ENV}" ]; then
+    echo "z/hybrid/${AEB_DEPLOYMENT_ENV}"
+  elif [ -d "${AEB_DEPLOYMENT_ENV}" ]; then
+    echo "${AEB_DEPLOYMENT_ENV}/deployer"
+  elif [ -d "deployer/${AEB_DEPLOYMENT_ENV}" ]; then
+    echo "deployer/${AEB_DEPLOYMENT_ENV}"
+  else
+    echo `pwd`
+  fi
+}
+
+aeb-local-build() {
+  if [ -n "${AWS_EXT_ACCOUNT_NAME}" ]; then
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+
+aeb-fix-network-configs() {
+  
+  # Switch into current working directory
+  pushd ${AEB_CONFIG_BASE_DIR} &>/dev/null
+
+  # Only do this on local machine after copying everything to work directory
+  if [ "$(aeb-local-build)" == "true" ]; then
+    templates=$(find ${AEB_CONFIGS_DIR} -name \*\.template\.aeb)
+    for template in $templates
+    do
+      relative_target_file_name=$(echo $template | sed s/\.template\.aeb//)
+      target_file_name=$(basename ${relative_target_file_name})
+      target_file_name_dir=$(dirname ${relative_target_file_name})
+      # Get in correct subdirectory
+      update=false
+      if [[ "${target_file_name_dir}" =~ configs$ ]]; then
+        # Hack
+        mkdir -p "${AEB_TMPDIR}/configs"
+        full_target_file="${AEB_TMPDIR}/configs/${target_file_name}"
+        update=true
+      elif [[ "${target_file_name_dir}" =~ extensions$ ]]; then
+        # Hack
+        mkdir -p "${AEB_TMPDIR}/artifacts/.ebextensions"
+        full_target_file="${AEB_TMPDIR}/artifacts/.ebextensions/${target_file_name}"
+        update=true
+      else
+        # Do nothing
+        update=false
+      fi
+      #echo "$update" "$full_target_file"
+      if [ "${update}" == "true" ]; then
+        cat $templates | sed s/AWS_EXT_EC2_KEY_NAME/${AWS_EXT_EC2_KEY_NAME}/g | sed s/AWS_EXT_VPCID/${AWS_EXT_VPCID}/g | sed s/AWS_EXT_SUBNETS/${AWS_EXT_SUBNETS}/g > $full_target_file
+        #cat $full_target_file
+      fi
+    done
+  fi
+
+  popd &>/dev/null
+  
+  #aeb-vars
+    
+}
+
+aeb-setup-deployer-work-dir(){
+  
+  export AEB_DEPLOYER_WORK_DIR=${AEB_TMPDIR}
+  rm -rf ${AEB_DEPLOYER_WORK_DIR}
+  mkdir -p ${AEB_DEPLOYER_WORK_DIR}
+  # Project stores everthing in $PROJECT_HOME/z/hybrid/<env>
+  rsync -a ${AEB_WORKSPACE}/z/hybrid/${AEB_DEPLOYMENT_ENV}/  ${AEB_DEPLOYER_WORK_DIR}
+  export AEB_CONFIG_BASE_DIR=${AEB_DEPLOYER_WORK_DIR}
+  # Copy build artifact
+  if [ -f ${AEB_WORKSPACE}/${AEB_RAW_ARTIFACT} ]; then
+    cp ${AEB_WORKSPACE}/${AEB_RAW_ARTIFACT} ${AEB_DEPLOYER_WORK_DIR}
+  fi
+
+  # Relocate certain directories
+  
+  export AEB_ARTIFACTS_DIR=${AEB_CONFIG_BASE_DIR}/artifacts
+  export AEB_CONFIGS_DIR=${AEB_CONFIG_BASE_DIR}/configs
+  export AEB_TOOLS_DIR=${AEB_CONFIG_BASE_DIR}/tools
+  
+}
+
+aeb-setup() {
+  
+  export AEB_SETUP_DONE=${AEB_SETUP_DONE:-false}
+    
+  if [ "${AEB_SETUP_DONE}" == "false" ]; then
+
+    # Tie in with SDP
+    export AEB_DEPLOYMENT_ENV=${Z_DEPLOYMENT_ENV_TYPE:-dev}
+    
+    aeb-aws-account-id # set the account id
+    export AEB_DEFAULT_S3_BUCKET="elasticbeanstalk-us-west-2-${AEB_AWS_ACCOUNT_ID}"
+    export AEB_BASE_S3_URL="s3://${AEB_DEFAULT_S3_BUCKET}/${AEB_ARTIFACT_BASE_NAME}"
+
+    if [ "$(aeb-locate-root)" == "" ]; then
+      export AEB_CONFIG_BASE_DIR=${AEB_CONFIG_BASE_DIR:-/Users/tflynn/Everything/projects/sdp_configs_sdp2_aeb/${AEB_ARTIFACT_BASE_NAME}}
+    else
+      export AEB_CONFIG_BASE_DIR="$(aeb-locate-root)"
+    fi
+    
+    export AEB_WORKSPACE=${WORKSPACE:-`pwd`}
+    export AEB_TMPDIR="${AEB_WORKSPACE}/z/tmp"
+    mkdir -p ${AEB_TMPDIR}    
+
+    export AEB_ARTIFACTS_DIR=${AEB_CONFIG_BASE_DIR}/artifacts
+    export AEB_CONFIGS_DIR=${AEB_CONFIG_BASE_DIR}/configs
+    export AEB_TOOLS_DIR=${AEB_CONFIG_BASE_DIR}/tools
+
+   # Setup work dir
+    aeb-setup-deployer-work-dir
+
+    # Fix network settings
+    aeb-fix-network-configs
+
+    # aeb-vars
+    # echo "Logging to ${AEB_LOG_FILE}"
+    #/bin/rm -rf ${AEB_LOG_FILE}
+    
+    export AEB_USE_SDP_NAMING=true
+    export AEB_DRY_RUN=false
+    
+    export AEB_SETUP_DONE=true
+    
+  fi
+  
+}
+
+aeb-test-setup() {
+  aeb-setup
+  env | grep '^AEB'
+}
+
+aeb-env(){
+  aeb-setup
+  $(env | grep '^AEB' | sort )
+}
+
+aeb-app-exists() {
+  aws elasticbeanstalk describe-applications --application-names $1 | awk ' NR == 2 { split($0,parts,":") ; app_array = parts[2]; gsub(/ /, "", app_array) ; print (app_array == "[]") ? "false" : "true" } '
+}
+
+aeb-app-emv-exists() {
+  aws elasticbeanstalk describe-environments --application-name $1 --environment-names "$2" | awk ' NR == 2 { split($0,parts,":") ; app_array = parts[2]; gsub(/ /, "", app_array) ; print (app_array == "[]") ? "false" : "true" } '
+}
+
+# Utility functions for AEB components
+aeb-zip(){
+  
+  aeb-setup
+    
+  export AEB_ARTIFACT_DATESTAMP=$(date +%Y%m%d-%H%M%S) 
+
+  export AEB_GIT_VERSION=$(aeb-git-version)
+  if [ "${AEB_GIT_VERSION}" != "" ]; then
+    export AEB_GIT_VERSION_SUFFIX="-${AEB_GIT_VERSION}"
+  else
+    export AEB_GIT_VERSION_SUFFIX=""
+  fi
+  export AEB_ARTIFACT_ZIP_NAME="${AEB_ARTIFACT_BASE_NAME}-${AEB_ARTIFACT_DATESTAMP}${AEB_GIT_VERSION_SUFFIX}.zip"
+  
+  pushd ${AEB_ARTIFACTS_DIR} &>/dev/null
+  pwd
+  aeb-log "cd $(pwd); zip -r ../${AEB_ARTIFACT_ZIP_NAME} ."   
+  zip -r ../${AEB_ARTIFACT_ZIP_NAME} .
+  popd &>/dev/null
+}
+
+aeb-cp(){
+  #aws s3 cp ../idpro-nettest.zip s3://elasticbeanstalk-us-west-2-742630462602/idpro-nettest/idpro-nettest-20160714-0912.zip
+
+  aeb-setup
+
+  aeb-zip # Create ZIP artifact before copying it to S3
+
+  pushd ${AEB_ARTIFACTS_DIR} &>/dev/null
+
+  aeb-log  "cd $(pwd) ; aws s3 cp ../${AEB_ARTIFACT_ZIP_NAME} ${AEB_BASE_S3_URL}/${AEB_ARTIFACT_ZIP_NAME}"
+  if [ ! "${AEB_DRY_RUN}" == "true" ]; then
+    aws s3 cp ../${AEB_ARTIFACT_ZIP_NAME} ${AEB_BASE_S3_URL}/${AEB_ARTIFACT_ZIP_NAME}
+  fi
+  
+  popd &>/dev/null
+}
+
+aeb-create-app() {
+   
+  aeb-log "aeb-create-app ${1}"
+
+  aeb-setup
+
+  if [ ! "${1}" == "" ]; then
+   export AEB_APPLICATION_NAME="$1"
+  else
+   export AEB_APPLICATION_NAME="${AEB_ARTIFACT_BASE_NAME}"
+  fi
+
+  if [ "$(aeb-app-exists ${AEB_APPLICATION_NAME})" == "true" ]; then
+    aeb-log "Application \"${AEB_APPLICATION_NAME}\" already exists. Skipping request to create."
+  else
+    aeb-log "aws elasticbeanstalk create-application --application-name ${AEB_APPLICATION_NAME}"
+
+    if [ ! "${AEB_DRY_RUN}" == "true" ]; then
+     aws elasticbeanstalk create-application --application-name ${AEB_APPLICATION_NAME}
+    fi
+  fi
+}
+
+aeb-app-version(){
+
+  aeb-log "aeb-app-version ${1}"
+  
+  aeb-setup
+  
+  export AEB_APP_VERSION_LABEL="${1}"
+  if [ "${AEB_APP_VERSION_LABEL}" == "" ]; then
+    aeb-log "Must specify an app version"
+    return
+  fi
+  
+  aeb-cp # ZIP artifact and copy to S3
+
+  aeb-log "aws elasticbeanstalk create-application-version \\"   
+  aeb-log "                     --application-name ${AEB_APPLICATION_NAME} \\"
+  aeb-log "                     --version-label ${AEB_APP_VERSION_LABEL} \\" 
+  aeb-log "                     --description \"${AEB_APPLICATION_NAME} ${AEB_DEPLOYMENT_ENV} deployment\"\\" 
+  aeb-log "                     --source-bundle S3Bucket=\"${AEB_DEFAULT_S3_BUCKET}\",S3Key=\"${AEB_ARTIFACT_BASE_NAME}/${AEB_ARTIFACT_ZIP_NAME}\"\\" 
+  aeb-log "                     --auto-create-application" 
+  
+  if [ ! "${AEB_DRY_RUN}" == "true" ]; then  
+    aws elasticbeanstalk create-application-version \
+                         --application-name ${AEB_APPLICATION_NAME} \
+                         --version-label ${AEB_APP_VERSION_LABEL} \
+                         --description "${AEB_APPLICATION_NAME} ${AEB_DEPLOYMENT_ENV} deployment"\
+                         --source-bundle S3Bucket="${AEB_DEFAULT_S3_BUCKET}",S3Key="${AEB_ARTIFACT_BASE_NAME}/${AEB_ARTIFACT_ZIP_NAME}"\
+                         --auto-create-application
+  fi
+  
+}
+
+
+
+aeb-create-env(){
+  
+  aeb-log "aeb-create-env ${1:-''} ${2:-''}"
+  
+  aeb-setup
+  
+  if [ $# -eq 2 ]; then
+    app_version_label="$2"
+    version_label="$1"
+  elif [ $# -eq 1 ]; then
+    app_version_label="$1"
+    version_label="$1"
+  else
+    aeb-log "Must specify an environment version"
+    return
+  fi
+
+  export AEB_VERSION_LABEL="${version_label}"
+  export AEB_ENVIRONMENT_NAME="${AEB_APPLICATION_NAME}-${AEB_VERSION_LABEL}"
+
+  if [ "$(aeb-app-emv-exists ${AEB_APPLICATION_NAME} ${AEB_ENVIRONMENT_NAME})" == "true" ]; then
+    aeb-log "Application environment \"${AEB_APPLICATION_NAME} / ${AEB_ENVIRONMENT_NAME}\" already exists. Skipping request to create."
+  else
+
+    aeb-app-version ${app_version_label} # ZIP artifact, copy to S3 and create app version
+
+    tag_service_name=$(echo ${AEB_APPLICATION_NAME} | cut -d'-' -f1)
+    tags="Key=service,Value=${tag_service_name} Key=product,Value=${AEB_PRODUCT_TAG}"
+  
+    aeb-log "aws elasticbeanstalk create-environment \\" 
+    aeb-log "                     --application-name  ${AEB_APPLICATION_NAME} \\" 
+    aeb-log "                     --environment-name ${AEB_ENVIRONMENT_NAME} \\" 
+    aeb-log "                     --version-label ${AEB_APP_VERSION_LABEL} \\" 
+    aeb-log "                     --solution-stack-name \"64bit Amazon Linux 2016.03 v2.1.3 running Java 8\"" 
+    aeb-log "                     --tags ${tags}"
+
+    aws elasticbeanstalk create-environment \
+                         --application-name  ${AEB_APPLICATION_NAME} \
+                         --environment-name ${AEB_ENVIRONMENT_NAME} \
+                         --version-label ${AEB_APP_VERSION_LABEL} \
+                         --solution-stack-name "64bit Amazon Linux 2016.03 v2.1.3 running Java 8" \
+                         --tags ${tags}
+  
+    echo "Command history in ${AEB_LOG_FILE}"
+  
+  fi
+  
+}
+
+aeb-deploy-app-version(){
+  
+  aeb-log "aeb-deploy-app-version ${1:-''} ${2:-''}"
+  
+  aeb-setup
+  
+  if [ $# -eq 2 ]; then
+    app_version_label="$2"
+    version_label="$1"
+    aeb_environment_name="${AEB_APPLICATION_NAME}-${version_label}"
+  elif [ $# -eq 1 ]; then
+    app_version_label="$1"
+    aeb_environment_name="${AEB_ENVIRONMENT_NAME}"
+  else
+    aeb-log "Must specify an optional environment and an application version"
+    return
+  fi
+
+   
+  aeb-app-version ${app_version_label} # ZIP artifact, copy to S3 and create app version
+
+  aeb-log "aws elasticbeanstalk update-environment \\" 
+  aeb-log "                     --application-name  ${AEB_APPLICATION_NAME} \\" 
+  aeb-log "                     --environment-name ${aeb_environment_name} \\" 
+  aeb-log "                     --version-label ${app_version_label}" 
+
+  aws elasticbeanstalk update-environment \
+                       --application-name  ${AEB_APPLICATION_NAME} \
+                       --environment-name ${aeb_environment_name} \
+                       --version-label ${app_version_label}
+  
+  #echo "Command history in ${AEB_LOG_FILE}"
+  
+}
+
+ebt-set-environment-name() {
+  export AEB_SDP_ENVIRONMENT_NAME="${AEB_SDP_APPLICATION_NAME}-${AEB_DEPLOYMENT_ENV}"
+  if [ "${AEB_DEPLOYMENT_ENV_DEV_NAMING:-false}" == "true" ]; then
+    if [ "${AEB_DEPLOYMENT_ENV}" == "dev" ]; then
+      dt_stamp=$(date +%Y%m%d-%H%M%S)
+      export AEB_SDP_ENVIRONMENT_NAME="${AEB_SDP_ENVIRONMENT_NAME}-${dt_stamp}${AEB_GIT_VERSION_SUFFIX}"
+    fi
+  fi
+}
+
+ebt-setup() {
+  
+  export AEB_EBT_SETUP_DONE=${AEB_EBT_SETUP_DONE:-false}
+ 
+  if [ ! "${AEB_EBT_SETUP_DONE}" == "true" ]; then
+
+    aeb-setup
+    
+    # SDP Naming
+    export AEB_SDP_COMPONENT_NAME="${Z_DEPLOYMENT_COMPONENT_NAME:-api}"
+    export AEB_SDP_APPLICATION_NAME="${AEB_ARTIFACT_BASE_NAME}-${AEB_SDP_COMPONENT_NAME}"
+    ebt-set-environment-name
+    export AEB_USE_SDP_NAMING=true
+    export AEB_EBT_DRY_RUN=false
+
+    export AEB_EBT_SETUP_DONE=true
+  fi
+}
+
+ebt-reset() {
+  
+  aeb-log "ebt-reset"
+  aeb-reset
+  
+  export AEB_USE_SDP_NAMING=true
+  export AEB_EBT_DRY_RUN=false
+  
+}
+
+ebt-create-app() {
+
+  aeb-log "ebt-create-app ${1:-}"
+
+  ebt-setup
+
+  # Use SDP Naming  
+  
+  if [ ! "${1}" == "" ]; then
+   export AEB_SDP_APPLICATION_NAME="${1}-${AEB_SDP_COMPONENT_NAME}"
+  else
+   export AEB_SDP_APPLICATION_NAME="${AEB_ARTIFACT_BASE_NAME}-${AEB_SDP_COMPONENT_NAME}"
+  fi
+  
+  ebt-set-environment-name
+  
+  if [ "$(aeb-app-exists ${AEB_SDP_APPLICATION_NAME})" == "true" ]; then
+    aeb-log "Application \"${AEB_SDP_APPLICATION_NAME}\" already exists. Skipping request to create."
+  else
+    aeb-log "ebt create-application ${AEB_SDP_APPLICATION_NAME}"
+    if [ "${AEB_EBT_DRY_RUN}" == "false" ]; then
+      ebt create-application ${AEB_SDP_APPLICATION_NAME}
+    fi
+  fi
+  
+}
+
+ebt-zip(){
+
+  ebt-setup
+
+  pushd ${AEB_ARTIFACTS_DIR} &>/dev/null
+  temp_zip_name="$(date +%Y%m%d-%H%M%S).zip"
+  aeb-log "cd $(pwd); zip -r ../${temp_zip_name} ."  
+  zip -r ../${temp_zip_name} .
+  
+  # Deal with SDP naming
+  cd ..
+  extension="${temp_zip_name##*.}"
+  md5=$(aeb-md5-file ${temp_zip_name})
+  
+  git_short_sha1=$(aeb-git-version)
+  export AEB_SDP_APPLICATION_VERSION_LABEL="${md5}-${git_short_sha1}"
+  export AEB_SDP_ARTIFACT_ZIP_NAME="${md5}-${git_short_sha1}.${extension}"
+  export AEB_SDP_DEPLOYMENT_BUNDLE_NAME="${AEB_SDP_ARTIFACT_ZIP_NAME}"
+  export AEB_SDP_DEPLOYMENT_BUNDLE="$(pwd)/${AEB_SDP_DEPLOYMENT_BUNDLE_NAME}"
+  aeb-log "mv ${temp_zip_name} ${AEB_SDP_ARTIFACT_ZIP_NAME}"  
+  rm -rf ${AEB_SDP_ARTIFACT_ZIP_NAME}
+  mv ${temp_zip_name} ${AEB_SDP_ARTIFACT_ZIP_NAME}
+  
+  popd &>/dev/null
+}
+
+ebt-cp(){
+
+  ebt-setup
+  
+  ebt-zip # Create ZIP artifact
+
+  pushd ${AEB_CONFIG_BASE_DIR} &>/dev/null
+  
+  if [ "${AEB_USE_SDP_NAMING}" == "true" ]; then
+    # Deal with SDP naming    
+    aeb-log  "$(pwd) ; aws s3 cp ${AEB_ARTIFACT_ZIP_NAME} ${AEB_BASE_S3_URL}/${AEB_ARTIFACT_ZIP_NAME}"
+    if [ "${AEB_EBT_DRY_RUN}" == "false" ]; then
+      aws s3 cp ${AEB_SDP_ARTIFACT_ZIP_NAME} ${AEB_BASE_S3_URL}/${AEB_SDP_ARTIFACT_ZIP_NAME}
+    fi
+  else
+    aeb-log "ERROR (ebt-cp) EBT must use SDP Naming"
+  fi
+    
+  popd &>/dev/null
+}
+
+ebt-create-env(){
+
+  aeb-log "ebt-create-env ${1:-} ${2:-}"
+  
+  ebt-setup
+
+  if [ "$(aeb-app-emv-exists ${AEB_SDP_APPLICATION_NAME} ${AEB_SDP_ENVIRONMENT_NAME})" == "true" ]; then
+    aeb-log "Application environment \"${AEB_SDP_APPLICATION_NAME} / ${AEB_SDP_ENVIRONMENT_NAME}\" already exists. Skipping request to create."
+  else
+
+    # Switch into current working directory
+    pushd ${AEB_CONFIG_BASE_DIR} &>/dev/null
+  
+    if [ "${AEB_USE_SDP_NAMING}" == "true" ]; then 
+      aeb-log "ebt create-environment  ${AEB_SDP_APPLICATION_NAME} ${AEB_SDP_ENVIRONMENT_NAME} \\"
+      aeb-log "                       --config-file ${AEB_CONFIGS_DIR}/ebt_deployer.yml"
+
+      if [ "${AEB_EBT_DRY_RUN}" == "false" ]; then
+        ebt create-environment  ${AEB_SDP_APPLICATION_NAME} ${AEB_SDP_ENVIRONMENT_NAME}   \
+                               --config-file ${AEB_CONFIGS_DIR}/ebt_deployer.yml
+      fi
+    else
+      aeb-log "ERROR (ebt-create-env) EBT must use SDP Naming"
+    fi
+
+    #echo "Command history in ${AEB_LOG_FILE}"
+
+    popd &>/dev/null
+    
+  fi
+  
+  
+  
+}
+
+ebt_create_application_version() {
+
+  aeb-log "ebt_create_application_version ${1:-} ${2:-}"
+
+  ebt-setup
+
+  ebt-cp # Create application artifact and copy to S3
+  
+  # Switch into current working directory
+  pushd ${AEB_CONFIG_BASE_DIR} &>/dev/null
+  
+  if [ "${AEB_USE_SDP_NAMING}" == "true" ]; then 
+    aeb-log "aws elasticbeanstalk create-application-version \\"   
+    aeb-log "                     --application-name ${AEB_SDP_APPLICATION_NAME} \\"
+    aeb-log "                     --version-label ${AEB_SDP_APPLICATION_VERSION_LABEL} \\" 
+    aeb-log "                     --description \"${AEB_SDP_APPLICATION_NAME} ${AEB_SDP_ENVIRONMENT_NAME} deployment\"\\" 
+    aeb-log "                     --source-bundle S3Bucket=\"${AEB_DEFAULT_S3_BUCKET}\",S3Key=\"${AEB_ARTIFACT_BASE_NAME}/${AEB_SDP_ARTIFACT_ZIP_NAME}" 
+
+    if [ "${AEB_EBT_DRY_RUN}" == "false" ]; then
+      aws elasticbeanstalk create-application-version \
+                           --application-name ${AEB_SDP_APPLICATION_NAME} \
+                           --version-label ${AEB_SDP_APPLICATION_VERSION_LABEL} \
+                           --description "${AEB_SDP_APPLICATION_NAME} ${AEB_SDP_ENVIRONMENT_NAME} deployment"\
+                           --source-bundle S3Bucket="${AEB_DEFAULT_S3_BUCKET}",S3Key="${AEB_ARTIFACT_BASE_NAME}/${AEB_SDP_ARTIFACT_ZIP_NAME}"
+    fi
+  else
+    aeb-log "ERROR (ebt_create_application_version) EBT must use SDP Naming"
+  fi
+  
+  # Switch back
+  popd &>/dev/null
+
+}
+
+
+ebt-deploy(){
+
+  aeb-log "ebt-deploy  ${1:-} ${2:-}"
+
+  ebt-setup
+
+  ebt_create_application_version # ZIP artifact, copy to S3, load into EB App
+  
+  # Switch into current working directory
+  pushd ${AEB_CONFIG_BASE_DIR} &>/dev/null
+  
+  artifact_url=""
+  
+  #aeb-vars
+  
+  if [ "${AEB_USE_SDP_NAMING}" == "true" ]; then  
+    
+    aeb-log "ebt deploy-application-version --application-name ${AEB_SDP_APPLICATION_NAME} \\"
+    aeb-log "                               --environment-name ${AEB_SDP_ENVIRONMENT_NAME} \\"
+    aeb-log "                               --no-create \\"
+    aeb-log "                               --version-label ${AEB_SDP_APPLICATION_VERSION_LABEL} \\"
+    aeb-log "                               --s3-bucket ${AEB_DEFAULT_S3_BUCKET} \\"
+    aeb-log "                               --s3-key ${AEB_ARTIFACT_BASE_NAME}/${AEB_SDP_ARTIFACT_ZIP_NAME} \\"
+    aeb-log "                               --artifact-url http://www.some.com/dont_care.zip"
+
+    if [ "${AEB_EBT_DRY_RUN}" == "false" ]; then
+      ebt deploy-application-version --application-name ${AEB_ARTIFACT_BASE_NAME} \
+                                     --environment-name ${AEB_SDP_ENVIRONMENT_NAME} \
+                                     --no-create \
+                                     --version-label ${AEB_SDP_APPLICATION_VERSION_LABEL} \
+                                     --s3-bucket ${AEB_DEFAULT_S3_BUCKET} \
+                                     --s3-key ${AEB_ARTIFACT_BASE_NAME}/${AEB_SDP_ARTIFACT_ZIP_NAME} \
+                                     --artifact-url http://www.some.com/dont_care.zip
+    fi
+  else
+    aeb-log "ERROR (ebt-deploy) EBT must use SDP Naming"
+  fi  
+
+  #echo "Command history in ${AEB_LOG_FILE}"
+
+  popd &>/dev/null
+    
+}
+# 
+# Crude AEB/SDP Automation ends
+#

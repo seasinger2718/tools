@@ -1,0 +1,42 @@
+#!/bin/tcsh
+
+#============================
+# Step 1: Most basic setup
+#============================
+
+# Set Language
+setenv LANG en_US
+
+# Include local commands in path
+setenv PATH ${PATH}:/usr/local/bin
+
+
+#============================================================
+# Step 2: Process every file in login configuration directory
+#============================================================
+
+# Include login configuration directory in path
+setenv LOGIN_CONFIGURATION ~/Config/login
+setenv PATH ${PATH}:${LOGIN_CONFIGURATION}
+
+unset process_in_this_order
+if -e ${LOGIN_CONFIGURATION}/.order then
+	set process_in_this_order = `cat ${LOGIN_CONFIGURATION}/.order`
+	foreach ordered_cmd (${process_in_this_order})
+		source ${LOGIN_CONFIGURATION}/${ordered_cmd}
+	end
+endif
+
+set cmdList = `ls ${LOGIN_CONFIGURATION}`
+
+foreach cmd (${cmdList})
+	set run_this_cmd = 1
+	foreach ordered_cmd (${process_in_this_order})
+		if ${cmd} == ${ordered_cmd} then
+			set run_this_cmd = 0
+		endif
+	end
+	if ${run_this_cmd} then
+		source ${LOGIN_CONFIGURATION}/${cmd}
+	endif
+end

@@ -1,0 +1,11 @@
+#!/bin/tcsh
+
+set is_managed=`svn log $1 |& grep -c 'not under version control'`
+
+#echo $1 $is_managed
+
+if ( $is_managed == 1) then
+	echo $1 is not managed by svn
+else
+#	echo $1 is managed by svn
+endif

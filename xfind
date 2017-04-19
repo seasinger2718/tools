@@ -1,0 +1,23 @@
+#!/bin/tcsh
+
+set searchtext = $1
+
+if "X$1" == "X" then
+	echo \
+"\
+Usage: xfind <search text>\
+\
+Recursively search files from current directory downwards for specified text\
+include files with extensions: .java, .txt, .py and .rb \
+"
+	exit 1
+endif
+
+set filelist = ''
+
+foreach extension (java txt py rb)
+	find . -name \*${extension} -exec grep -i -H  ${searchtext} {} \;
+end 
+
+set filelist  = ''
+set searchtext = ''

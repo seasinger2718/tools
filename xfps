@@ -1,0 +1,28 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+
+Signal.trap("INT") {puts ''; exit}
+
+settings = {:continuous => false, :sleep => 1, :timestamp => false}
+
+opts = OptionParser.new
+opts.on("-c","--continuous") {|val| settings[:continuous] = true }
+opts.on("-sSLEEP","--sleep SLEEP",Integer) {|val| settings[:sleep] = val.to_i}
+opts.on("-t","--timestamp") {|val| settings[:timestamp] = true }
+cmd_line = opts.parse(ARGV)
+
+cmd = "ps -alwwwx |  grep -i #{cmd_line[0]} | grep -v grep | grep -v fps"
+
+loop do
+  timestamp = settings[:timestamp] ? Time.now.strftime("%H:%M:%S ") : ''
+  response = `#{cmd}`
+  puts (timestamp + response) if response.strip.chomp != ''
+  if settings[:continuous]
+    sleep(settings[:sleep])
+  else
+    break
+  end
+end
+
+

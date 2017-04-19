@@ -1,0 +1,11 @@
+#!/usr/bin/env ruby
+
+major_minor = `ruby_version major_minor`.strip.chomp
+if major_minor == '1.8'
+  require "rbconfig" 
+  rubysite =  "#{Config::CONFIG['prefix']}/lib/ruby/site_ruby/1.8"
+  exec "${X_EDITOR} #{rubysite}"
+elsif major_minor == '1.9'
+  rubysite =  "#{RbConfig::CONFIG['prefix']}/lib/ruby/site_ruby/#{RbConfig::CONFIG['ruby_version']}"
+  exec "${X_EDITOR} #{rubysite}"
+end

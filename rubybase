@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+
+major_minor = `ruby_version major_minor`.strip.chomp
+if major_minor == '1.8'
+  require "rbconfig" 
+  puts  Config::CONFIG['prefix']
+elsif major_minor == '1.9'
+  puts RbConfig::CONFIG['prefix']
+end

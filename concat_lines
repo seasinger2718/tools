@@ -1,0 +1,21 @@
+#!/usr/bin/env ruby
+
+input_lines = nil
+File.open(ARGV[0]) do |file|
+  input_lines = file.readlines
+end
+
+output_line = ''
+first_time = true
+input_lines.each do |input_line|
+  input_line = input_line.strip.chomp
+  if first_time
+    first_time = false
+  else
+    output_line += ','
+  end
+  output_line += %{"#{input_line}"}
+end
+
+puts output_line
+

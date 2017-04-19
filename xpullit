@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+
+cwd = Dir.getwd
+
+branch_name = nil
+branch_status = nil
+
+if File.exists?("#{cwd}/.git")  
+  branches = `git branch`
+  branches.split("\n").each do | branch_info |
+    if branch_info =~ /^\*/
+      branch_status, branch_name = branch_info.split(" ")
+      break
+    end
+  end
+end
+
+if branch_status == '*' and branch_name
+  cmd = "git pull origin #{branch_name}"
+  puts cmd
+  result = `#{cmd}`
+  puts result
+else
+  puts "Can't find default branch"
+end
+

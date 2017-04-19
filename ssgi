@@ -1,0 +1,6 @@
+#!/usr/bin/env ruby
+
+args = ARGV.join(' ')
+cmd = "sudo gem install #{args}"
+#puts cmd
+puts `#{cmd}`

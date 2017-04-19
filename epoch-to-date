@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+
+require 'date'
+puts DateTime.strptime(ARGV[0],'%s')

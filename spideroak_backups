@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+#/Applications/Utility/SpiderOak.app/Contents/MacOS/SpiderOak --backup=/Users/tracy/Everything/Activities/visible_html --batchmode &
+#wait $!
+#/Applications/Utility/SpiderOak.app/Contents/MacOS/SpiderOak --backup=/Users/tracy/Everything/Activities/polyruby --batchmode &
+#wait $!
+#/Applications/Utility/SpiderOak.app/Contents/MacOS/SpiderOak --backup=/Users/tracy/Everything/Activities/anaylitics_lite --batchmode &
+#wait $!
+#/Applications/Utility/SpiderOak.app/Contents/MacOS/SpiderOak --backup=/Users/tracy/Everything/ActivitiesHelium/helium_requirements_jruby --batchmode &
+#wait $!
+
+#/Applications/Utility/SpiderOak.app/Contents/MacOS/SpiderOak --backup=/Users/tracy/Everything/ActivitiesHelium//Users/tracy/Everything/ActivitiesHelium/helium_jruby --batchmode &
+#wait $!
+#/Applications/Utility/SpiderOak.app/Contents/MacOS/SpiderOak --backup=/Users/tracy/Everything/ActivitiesHelium/helium_registration_play --batchmode &
+#wait $!
+
+#/Applications/Utility/SpiderOak.app/Contents/MacOS/SpiderOak --backup=/Users/tracy/Everything/ActivitiesHelium/helium --batchmode &
+#wait $!
+
+#/Applications/Utility/SpiderOak.app/Contents/MacOS/SpiderOak --backup=/Users/tracy/Everything/ActivitiesHelium/api_server --batchmode &
+#wait $!
+#/Applications/Utility/SpiderOak.app/Contents/MacOS/SpiderOak --backup=/Users/tracy/Everything/ActivitiesHelium/widget_configuration_server --batchmode &
+#wait $!
+#/Applications/Utility/SpiderOak.app/Contents/MacOS/SpiderOak --backup=/Users/tracy/Everything/ActivitiesHelium/widget_execution_server --batchmode &
+#wait $!
+
+# /Applications/Utility/SpiderOak.app/Contents/MacOS/SpiderOak --backup=/Users/tracy/Everything/ActivitiesHelium/cups --batchmode &
+# wait $!
+
+#/Applications/Utility/SpiderOak.app/Contents/MacOS/SpiderOak --backup=/Users/tracy/Everything/ActivitiesHelium/searchfeeder --batchmode &
+#wait $!
+
+

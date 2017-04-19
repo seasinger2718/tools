@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if [ "`ps -alxww | grep tomcat4.1.27.test | grep Bootstrap | grep -c java`" = "1" ]; then
+	echo Test Tomcat running
+else
+	echo Test Tomcat stopped
+fi

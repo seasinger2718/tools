@@ -1,0 +1,4 @@
+#!/bin/tcsh
+echo Changing ownership  for /usr/local/loncvsroot
+cd /usr/local/loncvsroot
+chown -R cvs:cvs *

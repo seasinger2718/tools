@@ -1,0 +1,15 @@
+#!/usr/bin/env ruby
+
+results = []
+results << `gem list | grep dm`
+results << `gem list | grep data_mapper`
+results << `gem list | grep do_`
+results << `gem list | grep data_objects`
+results << `gem list | grep extlib`
+results.each do |res|
+ res.each do |line|
+   l = line.split(" ").first
+   puts l
+   system "sudo gem uninstall #{l} -a"
+ end
+end

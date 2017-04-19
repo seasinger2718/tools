@@ -1,0 +1,100 @@
+#!/bin/bash
+exec scala "$0" "$@"
+!#
+
+/*
+Copyright (c) 2010-2012 Tracy Flynn - All rights reserved
+May be distributed under the same terms as Ruby
+*/
+
+import scala.sys.process._
+import scala.collection.JavaConversions.propertiesAsScalaMap
+import System._
+import scala.util.matching.Regex.MatchIterator
+
+object SystemUtils {
+	val programName = {
+		val filenames = new RuntimeException("").getStackTrace.map { t => t.getFileName }
+		val scala = filenames.indexOf("NativeMethodAccessorImpl.java")
+ 
+		if (scala == -1)
+			"<console>"
+		else
+			filenames(scala - 1)
+	}
+	
+	def isProgramPresent(program : String): Boolean = {
+	    val whichString = "which -s %s".format(program)
+	    whichString.! == 0   
+	}
+	
+}
+
+/*****
+Edit defaults starting here
+******/
+
+val DefaultGroupId = "net.verymuchme"
+val DefaultArtifactVersion = "1.0"
+
+//val javaProperties = propertiesAsScalaMap(System.getProperties())
+//javaEnvironmentProperties.keySet.toList.foreach(k => println(k))
+
+val SourceCodeAuthor = 
+    if (SystemUtils.isProgramPresent("git")) "git config --get user.name".!!
+    else System.getenv("LOGNAME")
+
+val PomDependencyJunitVersion = "4.8.1"
+val PomDependencySlf4jJclOverSlf4jVersion = "1.5.8"
+val PomDependencySlf4jSlf4jApiVersion = "1.5.8"
+val PomDependencySlf4jSlf4jLog4j12Version = "1.5.8"
+val PomDependencyLog4jVersion = "1.2.14"
+val PomDependencyJmockJunit4Version = "2.5.1"
+val PomDependencyJavaxServletApiVersion = "2.5"
+
+//val formatTemplate = """some %s"""
+// println(formatTemplate.format(PomDependencyLog4jVersion))
+
+val DefaultSourceCodeCopyrightMessage = """
+/* Copyright 2009-2012 Tracy Flynn
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+"""
+
+/*****
+End editing defaults - Do not edit below this point
+******/
+
+val programName = SystemUtils.programName
+
+var executableType = 'undefined
+var executableName = ""
+
+if (programName.matches(""".*esjar.*""")) {
+  executableType = 'jar
+  executableName = "esjar"
+}
+else if (programName.matches(""".*eswar.*""")) {
+  executableType = 'war
+  executableName = "eswar"
+}
+else if (programName.matches(""".*eswar.*""")) {
+  executableType = 'war
+  executableName = "eswar"
+}
+
+
+println("executableType " + executableType + " executableName " + executableName)
+
+

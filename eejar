@@ -1,0 +1,2046 @@
+#!/usr/bin/env ruby
+
+# Copyright (c) 2009-2013 Tracy Flynn - All rights reserved
+# May be distributed under the same terms as Ruby
+
+require 'fileutils'
+
+
+#####
+# Edit defaults starting here
+#####
+
+DEFAULT_GROUP_ID='com.verymuchme'
+DEFAULT_ARTIFACT_VERSION='1.0'
+
+author_name = `echo $LOGNAME`.strip.chomp
+cmd_result = `which git`
+cmd_status = $?
+if cmd_status == 0
+  author_name=`git config --get user.name`.strip.chomp
+end  
+SOURCE_CODE_AUTHOR=author_name
+
+POM_DEPENDENCY_JAVA_VERSION='1.7'
+POM_DEPENDENCY_JUNIT_VERSION='4.8.1'
+POM_DEPENDENCY_SLF4J_JCL_OVER_SLF4J_VERSION='1.5.8'
+POM_DEPENDENCY_SLF4J_SLF4J_API_VERSION='1.5.8'
+POM_DEPENDENCY_SLF4J_SLF4J_LOG4J12_VERSION='1.5.8'
+POM_DEPENDENCY_LOG4J_VERSION='1.2.14'
+POM_DEPENDENCY_JMOCK_JUNIT4_VERSION='2.5.1'
+POM_DEPENDENCY_JAVAX_SERVLET_API_VERSION='2.5'
+POM_DEPENDENCY_JAVAX_SERVLET_JSTL='1.2'
+POM_DEPENDENCY_GLASSFISH_EL_VERSION='2.2'
+POM_DEPENDENCY_GLASSFISH_JSP_VERSION='2.2'
+POM_DEPENDENCY_GLASSFISH_JSTL_VERSION='1.2'
+POM_DEPENDENCY_HIBERNATE='4.1.7.Final'
+POM_DEPENDENCY_HIBERNATE_VALIDATOR='4.3.0.Final'
+POM_DEPENDENCY_MYSQL_CONNECTOR='5.1.19'
+POM_DEPENDENCY_COMMONS_DBCP='1.2.2'
+POM_DEPENDENCY_JAVA_ASSIST='3.4.GA'
+POM_DEPENDENCY_SPRING='3.1.3.RELEASE'
+POM_DEPENDENCY_JAVAX_VALIDATION_API='1.0.0.GA'
+POM_DEPENDENCY_JODA_TIME='1.6.2'
+POM_DEPENDENCY_JODA_TIME_JSP_TAGS='1.0.2'
+POM_DEPENDENCY_APPCONFIG='4.0.1'
+
+DEFAULT_SOURCE_CODE_COPYRIGHT_MESSAGE=<<DEFAULT_SOURCE_CODE_COPYRIGHT_MESSAGE_TEMPLATE
+/* Copyright 2009-2013 Tracy Flynn
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+DEFAULT_SOURCE_CODE_COPYRIGHT_MESSAGE_TEMPLATE
+
+#####
+# End editing defaults - Do not edit below this point
+#####
+
+
+# For testing use only
+# NO_BANNER default is false
+NO_BANNER=false
+# FORCE_EXECUTABLE_TYPE should be commented out by default
+# FORCE_EXECUTABLE_TYPE=:war
+# FORCE_DEBUG should be commented out by default
+# FORCE_DEBUG=false
+# For testing use only ends
+
+if __FILE__ =~ /eejar/
+  executable_type = :jar
+  executable_name = 'eejar'
+elsif __FILE__ =~ /eewar/
+  executable_type = :war
+  executable_name = 'eewar'
+elsif __FILE__ =~ /eespringwar/
+  executable_type = :springwar
+  executable_name = 'eespringwar'
+end
+if defined?(FORCE_EXECUTABLE_TYPE)
+  executable_type=FORCE_EXECUTABLE_TYPE
+end
+EXECUTABLE_TYPE=executable_type
+EXECUTABLE_NAME=executable_name
+
+
+DESCRIPTION_TEXT=<<DESCRIPTION_TEXT_TEMPLATE
+Overview
+--------
+
+[EXECUTABLE_NAME] is a script that will create a skeleton for a single [PROJECT_DESCRIPTION].
+
+It uses the same concepts as a Maven archetype - groupID, artifactID and so on.
+
+In addition to the effective results of 'mvn archetype:generate' for a suitable archetype,
+the script will add:
+
+- Configuration and logging settings using EEProperties and Slf4jExt
+- Other artifacts suitable to the type of project
+- Sample code sufficient to create a runnable application
+
+To run
+------
+
+./#{EXECUTABLE_NAME}
+
+and respond to the prompts or accept the defaults offered.
+
+Options:
+
+-q         quiet mode - Disable this message
+--runit    Automically run the artifact after creating it
+
+Testing the result
+-----------------
+
+Example is for groupId 'com.example', artifact 'sampleproduct' and package  'com.example.sampleproduct'
+
+[RUN_INSTRUCTIONS]
+
+DESCRIPTION_TEXT_TEMPLATE
+
+
+EEJAR_TITLE=EXECUTABLE_NAME
+EEJAR_VERSION_MAJOR=4
+EEJAR_VERSION_MINOR=0
+EEJAR_VERSION="#{EEJAR_VERSION_MAJOR}.#{EEJAR_VERSION_MINOR}"
+EEJAR_AUTHOR='Tracy Flynn'
+EEJAR_VERSION_DATE='2013-03-31'
+EEJAR_COPYRIGHT='Copyright (c) 2009-2013 Tracy Flynn - All rights reserved'
+EEJAR_DISTRIBUTION='May be distributed under the same terms as Ruby'
+
+BANNER=<<BANNER_TEMPLATE
+
+Title: #{EEJAR_TITLE} 
+Version: #{EEJAR_VERSION} 
+Author: #{EEJAR_AUTHOR}
+
+#{EEJAR_COPYRIGHT}
+#{EEJAR_DISTRIBUTION}
+
+#{DESCRIPTION_TEXT}
+BANNER_TEMPLATE
+
+DEFAULT_PROJECT_DIRECTORIES = %w{
+  /bin
+  /docs
+  /docs/javadocs
+  /logs
+  /src
+  /src/main
+  /src/main/java
+  /src/main/resources
+  /src/test
+  /src/test/java
+  /src/test/resources
+}
+
+DEFAULT_WAR_PROJECT_DIRECTORIES = %w{
+  /src/main/webapp
+  /src/main/webapp/META-INF
+  /src/main/webapp/WEB-INF
+  /src/main/webapp/images
+  /src/main/webapp/javascript
+  /src/main/webapp/stylesheets
+  
+}
+
+DEFAULT_SPRING_WAR_PROJECT_DIRECTORIES = %w{
+  /src/main/webapp
+  /src/main/webapp/resources
+  /src/main/webapp/resources/images
+  /src/main/webapp/resources/javascripts
+  /src/main/webapp/resources/stylesheets
+  /src/main/webapp/META-INF
+  /src/main/webapp/WEB-INF
+  /src/main/webapp/WEB-INF/classes
+  /src/main/webapp/WEB-INF/layouts
+  /src/main/webapp/WEB-INF/messages
+  /src/main/webapp/WEB-INF/spring
+  /src/main/webapp/WEB-INF/spring/appServlet
+  /src/main/webapp/WEB-INF/views
+  
+}
+
+PACKAGE_SPECIFIC_DIRECTORIES = %w{
+  /src/main/java/[PACKAGE]
+  /src/main/resources/[PACKAGE]
+  /src/test/java/[PACKAGE]
+  /src/test/resources/[PACKAGE]
+}
+
+ADDITIONAL_SPRING_WAR_DIRECTORIES = %w{
+  /src/main/webapp/WEB-INF/views/account
+}
+
+
+STANDARD_GIT_IGNORE_CONTENTS=<<STANDARD_GIT_IGNORE_TEMPLATE
+.DS_Store
+logs
+logs/*
+target
+target/*
+.idea/workspace.xml
+.idea/tasks.xml
+projectFilesBackup*
+projectFilesBackup*/*
+STANDARD_GIT_IGNORE_TEMPLATE
+
+JAR_GIT_IGNORE_CONTENTS=<<JAR_GIT_IGNORE_TEMPLATE
+Sample.java
+SampleTest.java
+JAR_GIT_IGNORE_TEMPLATE
+
+WAR_GIT_IGNORE_CONTENTS=<<WAR_GIT_IGNORE_TEMPLATE
+SampleServlet.java
+SampleServletTest.java
+WAR_GIT_IGNORE_TEMPLATE
+
+SPRINGWAR_GIT_IGNORE_CONTENTS=<<SPRINGWAR_GIT_IGNORE_TEMPLATE
+SampleServlet.java
+SampleServletTest.java
+SPRINGWAR_GIT_IGNORE_TEMPLATE
+
+POM_CONTENTS_JAR=<<POM_TEMPLATE_JAR
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>[PACKAGE]</groupId>
+    <artifactId>[ARTIFACT_ID]</artifactId>
+    <version>[ARTIFACT_VERSION]</version>
+    <packaging>[POM_PACKAGING]</packaging>
+
+    <name>[ARTIFACT_ID]</name>
+    <url>http://maven.apache.org</url>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.0</version>
+                <configuration>
+                    <source>#{POM_DEPENDENCY_JAVA_VERSION}</source>
+                    <target>#{POM_DEPENDENCY_JAVA_VERSION}</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-my-jar-with-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+    <repositories>
+        <repository>
+          <id>mvn-repo-releases</id>
+          <url>https://github.com/tflynn/mvn-repo-public/raw/master/releases</url>
+        </repository>
+
+        <repository>
+          <id>mvn-repo-snapshots</id>
+          <url>https://github.com/tflynn/mvn-repo-public/raw/master/snapshots</url>
+        </repository>
+    
+        <repository>
+            <id>maven2-repository.dev.java.net</id>
+            <name>Java.net Repository for Maven</name>
+            <url>http://download.java.net/maven/2/</url>
+            <!--<layout>default</layout>-->
+        </repository>
+        <repository>
+            <id>Glassfish-maven2-repository.dev.java.net</id>
+            <name>JGlassfish ava.net Repository for Maven</name>
+            <url>http://download.java.net/maven/glassfish/</url>
+            <!--<layout>default</layout>-->
+        </repository>
+        <repository>
+          <id>java.net</id>
+          <url>http://download.java.net/maven/1</url>
+          <!-- <layout>legacy</layout> -->
+        </repository>
+    </repositories>
+
+    <dependencies>
+      <!--  AppConfig -->
+      <!--  Contains dependencies for:
+
+          junit 4.0.1
+          mockito-all 1.9.5
+          powermock-module-junit4 1.5
+          powermock-api-mockito 1.5
+          slf4j-api 1.7.2
+          logback-core 1.0.9
+          logback-classic 1.0.9
+          commons-configuration 1.9
+          commons-beanutils 1.8.3
+          freemarker 2.3.19
+          guava 13.0.1
+      
+      -->
+      <dependency>
+        <groupId>com.verymuchme.appconfig</groupId>
+        <artifactId>app_config</artifactId>
+        <version>#{POM_DEPENDENCY_APPCONFIG}</version>
+      </dependency>    
+
+       <!--  Testing -->
+       <dependency>
+         <groupId>junit</groupId>
+         <artifactId>junit</artifactId>
+         <version>4.8.1</version>
+         <scope>test</scope>
+       </dependency>
+
+       <dependency>
+         <groupId>org.mockito</groupId>
+         <artifactId>mockito-all</artifactId>
+         <version>1.9.5</version>
+         <scope>test</scope>
+       </dependency>    
+
+      <dependency>
+         <groupId>org.powermock</groupId>
+         <artifactId>powermock-module-junit4</artifactId>
+         <version>1.5</version>
+         <scope>test</scope>
+      </dependency>
+      <dependency>
+         <groupId>org.powermock</groupId>
+         <artifactId>powermock-api-mockito</artifactId>
+         <version>1.5</version>
+         <scope>test</scope>
+      </dependency>
+
+
+    </dependencies>
+</project>
+POM_TEMPLATE_JAR
+
+POM_CONTENTS_WAR=<<POM_TEMPLATE_WAR
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>[PACKAGE]</groupId>
+    <artifactId>[ARTIFACT_ID]</artifactId>
+    <version>[ARTIFACT_VERSION]</version>
+    <packaging>[POM_PACKAGING]</packaging>
+
+    <name>[ARTIFACT_ID]</name>
+    <url>http://maven.apache.org</url>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <build>
+        <finalName>[WAR_FINAL_NAME]</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.0</version>
+                <configuration>
+                    <source>#{POM_DEPENDENCY_JAVA_VERSION}</source>
+                    <target>#{POM_DEPENDENCY_JAVA_VERSION}</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.mortbay.jetty</groupId>
+                <artifactId>jetty-maven-plugin</artifactId>
+            </plugin>            
+        </plugins>
+    </build>
+
+    <repositories>
+        <repository>
+          <id>mvn-repo-releases</id>
+          <url>https://github.com/tflynn/mvn-repo-public/raw/master/releases</url>
+        </repository>
+
+        <repository>
+          <id>mvn-repo-snapshots</id>
+          <url>https://github.com/tflynn/mvn-repo-public/raw/master/snapshots</url>
+        </repository>
+    
+        <repository>
+            <id>maven2-repository.dev.java.net</id>
+            <name>Java.net Repository for Maven</name>
+            <url>http://download.java.net/maven/2/</url>
+            <!--<layout>default</layout>-->
+        </repository>
+        <repository>
+            <id>Glassfish-maven2-repository.dev.java.net</id>
+            <name>JGlassfish ava.net Repository for Maven</name>
+            <url>http://download.java.net/maven/glassfish/</url>
+            <!--<layout>default</layout>-->
+        </repository>
+        <repository>
+          <id>java.net</id>
+          <url>http://download.java.net/maven/1</url>
+          <!--<layout>legacy</layout>-->
+        </repository>
+    </repositories>
+
+    <dependencies>
+    
+        <!--  AppConfig -->
+        <!--  Contains dependencies for:
+    
+            junit 4.0.1
+            mockito-all 1.9.5
+            powermock-module-junit4 1.5
+            powermock-api-mockito 1.5
+            slf4j-api 1.7.2
+            logback-core 1.0.9
+            logback-classic 1.0.9
+            commons-configuration 1.9
+            commons-beanutils 1.8.3
+            freemarker 2.3.19
+            guava 13.0.1
+          
+        -->
+        <dependency>
+          <groupId>com.verymuchme.appconfig</groupId>
+          <artifactId>app_config</artifactId>
+          <version>4.0.1</version>
+        </dependency>    
+
+        <dependency>
+            <groupId>javax.el</groupId>
+            <artifactId>el-api</artifactId>
+            <version>#{POM_DEPENDENCY_GLASSFISH_EL_VERSION}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.glassfish.web</groupId>
+            <artifactId>jsp-impl</artifactId>
+            <version>#{POM_DEPENDENCY_GLASSFISH_JSP_VERSION}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>javax.servlet.jsp</groupId>
+            <artifactId>jsp-api</artifactId>
+            <version>#{POM_DEPENDENCY_GLASSFISH_JSP_VERSION}</version>
+            <scope>provided</scope>
+        </dependency>
+        
+        <dependency>
+            <groupId>org.glassfish.web</groupId>
+            <artifactId>jstl-impl</artifactId>
+            <version>#{POM_DEPENDENCY_GLASSFISH_JSTL_VERSION}</version>
+            <scope>provided</scope>
+        </dependency>
+        
+    </dependencies>
+</project>
+
+POM_TEMPLATE_WAR
+
+POM_CONTENTS_SPRINGWAR=<<POM_TEMPLATE_SPRINGWAR
+<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>[PACKAGE]</groupId>
+  <artifactId>[ARTIFACT_ID]</artifactId>
+  <version>[ARTIFACT_VERSION]</version>
+  <packaging>[POM_PACKAGING]</packaging>
+  <name>[ARTIFACT_ID]</name>
+  <url>http://maven.apache.org</url>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- Version number of Spring -->
+    <org.springframework.version>#{POM_DEPENDENCY_SPRING}</org.springframework.version>
+    <!-- Jetty version -->
+    <maven.jetty.version>6.1.10</maven.jetty.version>
+  </properties>
+  <build>
+    <!--<finalName>MyApp</finalName>-->
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.0</version>
+        <configuration>
+          <source>#{POM_DEPENDENCY_JAVA_VERSION}</source>
+          <target>#{POM_DEPENDENCY_JAVA_VERSION}</target>
+        </configuration>
+      </plugin>
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <configuration>
+          <descriptorRefs>
+            <descriptorRef>jar-with-dependencies</descriptorRef>
+          </descriptorRefs>
+        </configuration>
+        <executions>
+          <execution>
+            <id>make-my-jar-with-dependencies</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+           <groupId>org.mortbay.jetty</groupId>
+           <artifactId>maven-jetty-plugin</artifactId>
+           <version>${maven.jetty.version}</version>
+       </plugin>
+      
+    </plugins>
+  </build>
+
+  <repositories>
+  
+    <repository>
+      <id>mvn-repo-releases</id>
+      <url>https://github.com/tflynn/mvn-repo-public/raw/master/releases</url>
+    </repository>
+
+    <repository>
+      <id>mvn-repo-snapshots</id>
+      <url>https://github.com/tflynn/mvn-repo-public/raw/master/snapshots</url>
+    </repository>
+  
+    <repository>
+      <id>springsource-repo</id>
+      <name>SpringSource Repository</name>
+      <url>http://repo.springsource.org/release</url>
+    </repository>
+    <repository>
+        <id>JBoss repository</id>
+        <url>http://repository.jboss.org/nexus/content/groups/public/</url>
+    </repository>
+  </repositories>
+
+  <dependencies>
+  
+    <!--  AppConfig -->
+    <!--  Contains dependencies for:
+
+        junit 4.0.1
+        mockito-all 1.9.5
+        powermock-module-junit4 1.5
+        powermock-api-mockito 1.5
+        slf4j-api 1.7.2
+        logback-core 1.0.9
+        logback-classic 1.0.9
+        commons-configuration 1.9
+        commons-beanutils 1.8.3
+        freemarker 2.3.19
+        guava 13.0.1
+    
+    -->
+    <dependency>
+      <groupId>com.verymuchme.appconfig</groupId>
+      <artifactId>app_config</artifactId>
+      <version>4.0.1</version>
+    </dependency>    
+  
+
+    <!-- Hibernate -->
+    <dependency>
+      <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-core</artifactId>
+      <version>#{POM_DEPENDENCY_HIBERNATE}</version>
+    </dependency>
+
+    <!-- MySQL connector -->
+    <dependency>
+      <groupId>mysql</groupId>
+      <artifactId>mysql-connector-java</artifactId>
+      <version>#{POM_DEPENDENCY_MYSQL_CONNECTOR}</version>
+    </dependency>
+
+    <!--  JSR 303 with Hibernate Validator -->
+    <dependency>
+      <groupId>javax.validation</groupId>
+      <artifactId>validation-api</artifactId>
+      <version>#{POM_DEPENDENCY_JAVAX_VALIDATION_API}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-validator</artifactId>
+      <version>#{POM_DEPENDENCY_HIBERNATE_VALIDATOR}</version>
+    </dependency>
+
+    <!--  Joda Time -->
+    <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
+      <version>#{POM_DEPENDENCY_JODA_TIME}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time-jsptags</artifactId>
+      <version>#{POM_DEPENDENCY_JODA_TIME_JSP_TAGS}</version>
+      <scope>runtime</scope>
+    </dependency>   
+
+
+    <!-- Spring -->
+    <!-- Core utilities used by other modules.
+          Define this if you use Spring Utility APIs -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-core</artifactId>
+      <version>${org.springframework.version}</version>
+    </dependency>
+    <!-- Expression Language (depends on spring-core)
+          Define this if you use Spring Expression APIs -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-expression</artifactId>
+      <version>${org.springframework.version}</version>
+    </dependency>
+    <!-- Bean Factory and JavaBeans utilities (depends on spring-core)
+          Define this if you use Spring Bean APIs
+          (org.springframework.beans.*)-->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-beans</artifactId>
+      <version>${org.springframework.version}</version>
+    </dependency>
+    <!-- Aspect Oriented Programming (AOP) Framework
+          (depends on spring-core, spring-beans)
+          Define this if you use Spring AOP APIs
+          (org.springframework.aop.*)-->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-aop</artifactId>
+      <version>${org.springframework.version}</version>
+    </dependency>
+    <!-- Application Context
+      (depends on spring-core, spring-expression, spring-aop, spring-beans)
+      This is the central artifact for Spring's Dependency Injection Container
+      and is generally always defined-->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+      <version>${org.springframework.version}</version>
+    </dependency>
+    <!-- Various Application Context utilities, including EhCache, JavaMail, Quartz, and Freemarker integration. Define this if you need any of these integrations-->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context-support</artifactId>
+      <version>${org.springframework.version}</version>
+    </dependency>
+    <!-- Transaction Management Abstraction
+          (depends on spring-core, spring-beans, spring-aop, spring-context)
+          Define this if you use Spring Transactions or DAO Exception Hierarchy
+          (org.springframework.transaction.*/org.springframework.dao.*)-->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-tx</artifactId>
+      <version>${org.springframework.version}</version>
+    </dependency>
+    <!-- JDBC Data Access Library
+          (depends on spring-core, spring-beans, spring-context, spring-tx)
+          Define this if you use Spring's JdbcTemplate API
+          (org.springframework.jdbc.*)-->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-jdbc</artifactId>
+      <version>${org.springframework.version}</version>
+    </dependency>
+    <!-- Object-to-Relation-Mapping (ORM) integration with Hibernate, JPA and iBatis.
+      (depends on spring-core, spring-beans, spring-context, spring-tx)
+      Define this if you need ORM (org.springframework.orm.*)-->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-orm</artifactId>
+      <version>${org.springframework.version}</version>
+    </dependency>
+    <!-- Object-to-XML Mapping (OXM) abstraction and integration with JAXB, JiBX,
+      Castor, XStream, and XML Beans.
+      (depends on spring-core, spring-beans, spring-context)
+      Define this if you need OXM (org.springframework.oxm.*)-->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-oxm</artifactId>
+      <version>${org.springframework.version}</version>
+    </dependency>
+    <!-- Web application development utilities applicable to both Servlet and
+      Portlet Environments
+      (depends on spring-core, spring-beans, spring-context)
+      Define this if you use Spring MVC, or wish to use Struts, JSF, or another
+      web framework with Spring (org.springframework.web.*)-->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-web</artifactId>
+      <version>${org.springframework.version}</version>
+    </dependency>
+    <!-- Spring MVC for Servlet Environments
+        (depends on spring-core, spring-beans, spring-context, spring-web)
+        Define this if you use Spring MVC with a Servlet Container such as
+        Apache Tomcat (org.springframework.web.servlet.*)-->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-webmvc</artifactId>
+      <version>${org.springframework.version}</version>
+    </dependency>
+    <!-- Spring MVC for Portlet Environments
+          (depends on spring-core, spring-beans, spring-context, spring-web)
+          Define this if you use Spring MVC with a Portlet Container
+          (org.springframework.web.portlet.*)-->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-webmvc-portlet</artifactId>
+      <version>${org.springframework.version}</version>
+    </dependency>
+    <!-- Support for testing Spring applications with tools such as JUnit and TestNG
+      This artifact is generally always defined with a 'test' scope for the
+      integration testing framework and unit testing stubs-->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-test</artifactId>
+      <version>${org.springframework.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+
+    <dependency>
+      <groupId>commons-dbcp</groupId>
+      <artifactId>commons-dbcp</artifactId>
+      <version>#{POM_DEPENDENCY_COMMONS_DBCP}</version>
+    </dependency>
+    <!--
+    <dependency>
+      <groupId>javassist</groupId>
+      <artifactId>javassist</artifactId>
+      <version>#{POM_DEPENDENCY_JAVA_ASSIST}</version>
+    </dependency>
+    -->
+    
+    <!-- Javax servlet is used for HttpSession and HttpServletRequest -->
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>servlet-api</artifactId>
+      <version>#{POM_DEPENDENCY_JAVAX_SERVLET_API_VERSION}</version>
+    </dependency>
+    
+    <!-- Dependency used for jsp pages -->
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>jstl</artifactId>
+      <version>#{POM_DEPENDENCY_JAVAX_SERVLET_JSTL}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+  </dependencies>
+</project>
+
+POM_TEMPLATE_SPRINGWAR
+
+
+SAMPLE_JAVA_CONTENTS=<<SAMPLE_JAVA_TEMPLATE
+[COPYRIGHT_MESSAGE]
+package [PACKAGE];
+
+import java.util.HashMap;
+
+import ch.qos.logback.classic.LogbackFactory;
+import ch.qos.logback.classic.Logger;
+
+import com.verymuchme.appconfig.AppConfig;
+import com.verymuchme.appconfig.Configuration;
+
+/**
+ * A brief description of what this class does
+ *
+ * @author #{SOURCE_CODE_AUTHOR}
+ * @version [ARTIFACT_VERSION]
+ * @since [ARTIFACT_VERSION]
+ */
+public class Sample {
+
+    /**
+     * Logger instance
+     */
+	  private static final Logger logger = LogbackFactory.getLogger(Sample.class);
+
+    // Options to pass into AppConfig
+    private static HashMap<String,Object> configurationOptions = new HashMap<String,Object>();
+
+	  // Configuration object
+	  private static Configuration configuration = null;
+
+    /**
+     * A brief description of what this method does
+     *
+     * @param args An array of command-line arguments
+     *
+     */
+    public static void main( String[] args ) {
+      
+      try {
+        AppConfig appConfig = new AppConfig();
+        appConfig.setApplicationPropertiesPackageName(Sample.class.getPackage().getName());
+        configurationOptions.put("application.logging.contextClass",Sample.class);
+        appConfig.setOptions(configurationOptions);
+        appConfig.configure();
+        configuration = appConfig.getConfiguration();
+        logger.debug("Application and logging configured");
+      }
+      catch (Exception e) {
+        // In the case of configuration, pretty much any error is fatal. So, log it and go away
+        String errorMsg = "Configuration failed with unexpected error";
+        try {
+          logger.error(errorMsg,e);
+        }
+        catch (Exception ee) {
+          //  Means that logging was not configured - so, in this case need to print to console
+          System.out.println(errorMsg);
+          System.out.println(e.getMessage());
+          e.printStackTrace(System.out);
+        }
+        throw new RuntimeException(errorMsg,e);
+      }
+    }
+      
+      
+}
+
+SAMPLE_JAVA_TEMPLATE
+
+SAMPLE_JAVA_TEST_CONTENTS=<<SAMPLE_JAVA_TEST_TEMPLATE
+[COPYRIGHT_MESSAGE]
+package [PACKAGE];
+
+import org.junit.Test;
+import static org.junit.Assert.*;
+import org.junit.runner.RunWith;
+
+import static org.mockito.Mockito.*;
+
+import ch.qos.logback.classic.LogbackFactory;
+import ch.qos.logback.classic.Logger;
+
+import com.verymuchme.appconfig.AppConfig;
+import com.verymuchme.appconfig.Configuration;
+
+import java.util.List;
+
+/**
+ * A brief description of what this class does
+ *
+ * @author #{SOURCE_CODE_AUTHOR}
+ * @version [ARTIFACT_VERSION]
+ * @since [ARTIFACT_VERSION]
+ */
+ 
+ // @RunWith(MockitoJUnitRunner.class)
+public class SampleTest {
+
+  /**
+   * Logger instance
+   */
+  private static final Logger logger = LogbackFactory.getLogger(SampleTest.class);
+
+  @Test
+  public void testSomething() {
+    List mockedList = mock(List.class);
+    mockedList.add("one");
+    mockedList.clear();
+    
+    verify(mockedList).add("one");
+    verify(mockedList).clear();
+  }
+
+}
+
+SAMPLE_JAVA_TEST_TEMPLATE
+
+SAMPLE_JAVA_SERVLET_CONTENTS=<<SAMPLE_JAVA_SERVLET_TEMPLATE
+[COPYRIGHT_MESSAGE]
+package [PACKAGE];
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * A brief description of what this class does
+ *
+ * @author #{SOURCE_CODE_AUTHOR}
+ * @version [ARTIFACT_VERSION]
+ * @since [ARTIFACT_VERSION]
+ */
+public class SampleServlet extends HttpServlet {
+
+    /**
+     * Logger instance
+     */
+    private static final Logger logger = LoggerFactory.getLogger(SampleServlet.class);
+
+    /**
+     * Servlet initialization
+     */
+    public void init(ServletConfig config) {
+        
+    }
+    
+    /**
+     * Respond to GET requests
+     */
+    public void doGet(HttpServletRequest request, HttpServletResponse response)
+      throws IOException, ServletException {
+        logger.debug("Log message from " + SampleServlet.class.getName() + " doGet");
+        PrintWriter out = response.getWriter();
+        out.println("<html><head><title>Sample Servlet</title></head><body>Congratulations! - you have a functioning servlet!</body></html>");
+    }
+
+    /**
+     * Respond to POST requests
+     */
+    public void doPost(HttpServletRequest request, HttpServletResponse response)
+      throws IOException, ServletException {
+        logger.debug("Log message from " + SampleServlet.class.getName() + " doPost");
+        doGet(request,response);
+    }
+     
+}
+
+SAMPLE_JAVA_SERVLET_TEMPLATE
+
+SAMPLE_JAVA_SERVLET_TEST_CONTENTS=<<SAMPLE_JAVA_SERVLET_TEST_TEMPLATE
+[COPYRIGHT_MESSAGE]
+package [PACKAGE];
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.junit.Test;
+import static org.junit.Assert.*;
+import org.junit.runner.RunWith;
+
+import org.jmock.Expectations;
+import org.jmock.Mockery;
+import org.jmock.integration.junit4.JMock;
+import org.jmock.integration.junit4.JUnit4Mockery;
+
+/**
+ * A brief description of what this class does
+ *
+ * @author #{SOURCE_CODE_AUTHOR}
+ * @version [ARTIFACT_VERSION]
+ * @since [ARTIFACT_VERSION]
+ */
+@RunWith(JMock.class)
+public class SampleServletTest {
+
+    Mockery context = new JUnit4Mockery(); 
+
+    /**
+     * Logger instance
+     */
+    private static final Logger logger = LoggerFactory.getLogger(SampleServletTest.class);
+
+    @Test
+    public void testServletInit() {
+        /*
+         * The testing strategy with JMock works best from the inside out.
+         *
+         * Look for the 'innermost' piece you need to test and works outwards.
+         */
+
+        /*
+         * Step 1
+         *
+         * For call to an NTTPServlet.init method, we first need a ServletConfig object.
+         */
+        final ServletConfig servletConfigMock = (ServletConfig) context.mock(ServletConfig.class);
+
+        /*
+         * Step 2
+         *
+         * Instance the SampleServlet
+         */
+        final SampleServlet sampleServlet = new SampleServlet();
+
+        /*
+         * Step 3
+         *
+         * Call the init method with the mocked ServletConfig object
+         */
+        sampleServlet.init(servletConfigMock);
+
+        /*
+         * In this case, there are no assertions to test - just output to the console
+         * that indicates the configuration and logging has been initialized correctly.
+         */
+
+        assertTrue(true);
+    }
+
+    @Test
+    public void testServletGet() {
+
+        try {
+            /*
+             * The testing strategy with JMock works best from the inside out.
+             *
+             * Look for the 'innermost' piece you need to test and works outwards.
+             *
+             * This case is a little more involved than the first test above.
+             *
+             * Since we don't have a Servlet container, we have to mimic what it does
+             * when it calls a Servlet with a request.
+             */
+
+            /*
+             * Here's what we expect back
+             */
+            final String expectedHTML = "<html><head><title>Sample Servlet</title></head><body>Congratulations! - you have a functioning servlet!</body></html>\\n";
+            
+            /*
+             * Step 1
+             *
+             * We want to test what the servlet generates for output from the doGet method.
+             * So we need a PrintWriter object whose output we can capture and examine.
+             * That turns out to be easy, without needing a mock object at all.
+             */
+            final StringWriter stringWriter = new StringWriter();
+            final PrintWriter printWriter = new PrintWriter(stringWriter);
+
+            /*
+             * Step 2
+             *
+             * We need a mock HttpServletRequest object that does nothing
+             */
+            final HttpServletRequest mockHttpServletRequest = (HttpServletRequest) context.mock(HttpServletRequest.class);
+
+            /*
+             * Step 3
+             *
+             * We need a mock HttpServletResponse object that will return the
+             * PrintWriter instance from Step 1 in response to the 'getWriter' call.
+             *
+             * Examine 'SampleSevlet' if the reason isn't clear.
+             */
+            final HttpServletResponse mockHttpServletResponse = (HttpServletResponse) context.mock(HttpServletResponse.class);
+
+            context.checking(new Expectations() {{
+                oneOf (mockHttpServletResponse).getWriter(); will(returnValue(printWriter));
+            }});
+
+            /*
+             * Step 4
+             * 
+             * Finally call the doGet method with all the pieces.
+             * Remember, we need to initialize the servlet first!
+             */
+            final ServletConfig servletConfigMock = (ServletConfig) context.mock(ServletConfig.class);
+            final SampleServlet sampleServlet = new SampleServlet();
+            sampleServlet.init(servletConfigMock);
+            sampleServlet.doGet(mockHttpServletRequest, mockHttpServletResponse);
+
+            /*
+             * And test the result
+             */
+            String actualHTML = stringWriter.toString();
+            assertEquals("The actual output didn't match the expected output", expectedHTML,actualHTML);
+
+        }
+        catch (Exception ex) {
+            assertTrue("An exception occurred",false);
+        }
+
+    }
+
+}
+SAMPLE_JAVA_SERVLET_TEST_TEMPLATE
+
+SAMPLE_SPRING_MODEL_CONTENTS=<<SAMPLE_SPRING_MODEL_TEMPLATE
+[COPYRIGHT_MESSAGE]
+package [PACKAGE];
+
+import java.math.BigDecimal;
+import java.util.Date;
+import java.util.concurrent.atomic.AtomicLong;
+
+import javax.validation.constraints.Future;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.format.annotation.NumberFormat;
+import org.springframework.format.annotation.NumberFormat.Style;
+
+/**
+ * A brief description of what this class does
+ *
+ * @author #{SOURCE_CODE_AUTHOR}
+ * @version [ARTIFACT_VERSION]
+ * @since [ARTIFACT_VERSION]
+ */
+public class Account {
+  
+  private Long id;
+  
+  @NotNull
+  @Size(min=1, max=25)
+  private String name;
+  
+  @NotNull
+  @NumberFormat(style=Style.CURRENCY)
+  private BigDecimal balance = new BigDecimal("1000");
+  
+  @NotNull
+  @NumberFormat(style=Style.PERCENT)
+  private BigDecimal equityAllocation = new BigDecimal(".60");
+
+  @DateTimeFormat(style="S-")
+  @Future
+  private Date renewalDate = new Date(new Date().getTime() + 31536000000L);
+
+  public Long getId() {
+    return id;
+  }
+
+  void setId(Long id) {
+    this.id = id;
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
+  public BigDecimal getBalance() {
+    return balance;
+  }
+
+  public void setBalance(BigDecimal balance) {
+    this.balance = balance;
+  }
+
+  public BigDecimal getEquityAllocation() {
+    return equityAllocation;
+  }
+
+  public void setEquityAllocation(BigDecimal equityAllocation) {
+    this.equityAllocation = equityAllocation;
+  }
+
+  public Date getRenewalDate() {
+    return renewalDate;
+  }
+
+  public void setRenewalDate(Date renewalDate) {
+    this.renewalDate = renewalDate;
+  }
+  
+  Long assignId() {
+    this.id = idSequence.incrementAndGet();
+    return id;
+  }
+  
+  private static final AtomicLong idSequence = new AtomicLong();
+  
+}
+SAMPLE_SPRING_MODEL_TEMPLATE
+
+SAMPLE_SPRING_CONTROLLER_CONTENTS=<<SAMPLE_SPRING_CONTROLLER_TEMPLATE
+[COPYRIGHT_MESSAGE]
+package [PACKAGE];
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import javax.validation.Valid;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+
+/**
+ * A brief description of what this class does
+ *
+ * @author #{SOURCE_CODE_AUTHOR}
+ * @version [ARTIFACT_VERSION]
+ * @since [ARTIFACT_VERSION]
+ */
+@Controller
+@RequestMapping(value="/account")
+public class AccountController {
+
+  private Map<Long, Account> accounts = new ConcurrentHashMap<Long, Account>();
+  
+  @RequestMapping(method=RequestMethod.GET)
+  public String getCreateForm(Model model) {
+    model.addAttribute(new Account());
+    return "account/createForm";
+  }
+  
+  @RequestMapping(method=RequestMethod.POST)
+  public String create(@Valid Account account, BindingResult result) {
+    if (result.hasErrors()) {
+      return "account/createForm";
+    }
+    this.accounts.put(account.assignId(), account);
+    return "redirect:/account/" + account.getId();
+  }
+  
+  @RequestMapping(value="{id}", method=RequestMethod.GET)
+  public String getView(@PathVariable Long id, Model model) {
+    Account account = this.accounts.get(id);
+    if (account == null) {
+      throw new ResourceNotFoundException(id);
+    }
+    model.addAttribute(account);
+    return "account/view";
+  }
+
+}
+
+SAMPLE_SPRING_CONTROLLER_TEMPLATE
+
+SAMPLE_SPRING_EXCEPTION_CONTENTS=<<SAMPLE_SPRING_EXCEPTION_TEMPLATE
+[COPYRIGHT_MESSAGE]
+package [PACKAGE];
+
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
+
+/**
+ * A brief description of what this class does
+ *
+ * @author #{SOURCE_CODE_AUTHOR}
+ * @version [ARTIFACT_VERSION]
+ * @since [ARTIFACT_VERSION]
+ */
+@ResponseStatus(value=HttpStatus.NOT_FOUND)
+public class ResourceNotFoundException extends RuntimeException {
+  
+  private Long resourceId;
+  
+  public ResourceNotFoundException(Long resourceId) {
+    this.resourceId = resourceId;
+  }
+  
+  public Long getResourceId() {
+    return resourceId;
+  }
+  
+}
+
+SAMPLE_SPRING_EXCEPTION_TEMPLATE
+
+SAMPLE_SPRING_VIEW_CREATE_CONTENTS=<<SAMPLE_SPRING_VIEW_CREATE_TEMPLATE
+<%@page contentType="text/html;charset=UTF-8"%>
+<%@page pageEncoding="UTF-8"%>
+<%@ page session="false" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
+<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
+
+<html>
+<head>
+  <META http-equiv="Content-Type" content="text/html;charset=UTF-8">
+  <title>Create Account</title>
+  <link rel="stylesheet" href="<c:url value="/resources/blueprint/screen.css" />" type="text/css" media="screen, projection">
+  <link rel="stylesheet" href="<c:url value="/resources/blueprint/print.css" />" type="text/css" media="print">
+  <!--[if lt IE 8]>
+    <link rel="stylesheet" href="<c:url value="/resources/blueprint/ie.css" />" type="text/css" media="screen, projection">
+  <![endif]-->
+</head> 
+<body>
+<div class="container">
+  <h1>
+    Create Account
+  </h1>
+  <div class="span-12 last">  
+    <form:form modelAttribute="account" action="account" method="post">
+        <fieldset>    
+        <legend>Account Fields</legend>
+        <p>
+          <form:label for="name" path="name" cssErrorClass="error">Name</form:label><br/>
+          <form:input path="name" /> <form:errors path="name" />      
+        </p>
+        <p> 
+          <form:label for="balance" path="balance" cssErrorClass="error">Balance</form:label><br/>
+          <form:input path="balance" /> <form:errors path="balance" />
+        </p>
+        <p>
+          <form:label for="equityAllocation" path="equityAllocation" cssErrorClass="error">Equity Allocation</form:label><br/>
+          <form:input path="equityAllocation" /> <form:errors path="equityAllocation" />
+        </p>
+        <p> 
+          <form:label for="renewalDate" path="renewalDate" cssErrorClass="error">Renewal Date</form:label><br/>
+          <form:input path="renewalDate" /> <form:errors path="renewalDate" />
+        </p>
+        <p> 
+          <input type="submit" />
+        </p>
+      </fieldset>
+    </form:form>
+  </div>
+  <hr>  
+  <ul>
+    <li> <a href="?locale=en_us">us</a> |  <a href="?locale=en_gb">gb</a> | <a href="?locale=es_es">es</a> | <a href="?locale=de_de">de</a> </li>
+  </ul> 
+</div>
+</body>
+</html>
+SAMPLE_SPRING_VIEW_CREATE_TEMPLATE
+
+SAMPLE_SPRING_VIEW_VIEW_CONTENTS=<<SAMPLE_SPRING_VIEW_VIEW_TEMPLATE
+<%@page contentType="text/html;charset=UTF-8"%>
+<%@page pageEncoding="UTF-8"%>
+<%@ page session="false" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
+<%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
+
+<html>
+<head>
+  <META http-equiv="Content-Type" content="text/html;charset=UTF-8">
+  <title>@Controller Example</title>
+  <link rel="stylesheet" href="<c:url value="/resources/blueprint/screen.css" />" type="text/css" media="screen, projection">
+  <link rel="stylesheet" href="<c:url value="/resources/blueprint/print.css" />" type="text/css" media="print">
+  <!--[if lt IE 8]>
+    <link rel="stylesheet" href="<c:url value="/resources/blueprint/ie.css" />" type="text/css" media="screen, projection">
+  <![endif]-->
+</head> 
+<body>
+<div class="container">
+  <h1>
+    View Account
+  </h1>
+  <div class="span-12 last">  
+    <form:form modelAttribute="account" action="${account.id}" method="post">
+        <fieldset>    
+        <legend>Account Fields</legend>
+        <p>
+          <form:label for="name" path="name">Name</form:label><br/>
+          <form:input path="name" readonly="true"/>   
+        </p>
+        <p> 
+          <form:label for="balance" path="balance">Balance</form:label><br/>
+          <form:input path="balance" readonly="true"/>
+        </p>
+        <p>
+          <form:label for="equityAllocation" path="equityAllocation">Equity Allocation</form:label><br/>
+          <form:input path="equityAllocation" readonly="true"/>
+        </p>
+        <p> 
+          <form:label for="renewalDate" path="renewalDate">Renewal Date</form:label><br/>
+          <form:input path="renewalDate" readonly="true"/>
+        </p>
+      </fieldset>
+    </form:form>
+  </div>
+  <hr>  
+  <ul>
+    <li> <a href="?locale=en_us">us</a> |  <a href="?locale=en_gb">gb</a> | <a href="?locale=es_es">es</a> | <a href="?locale=de_de">de</a> </li>
+  </ul> 
+</div>
+</body>
+</html>
+SAMPLE_SPRING_VIEW_VIEW_TEMPLATE
+
+SAMPLE_SPRING_VIEW_WELCOME_CONTENTS=<<SAMPLE_SPRING_VIEW_WELCOME_TEMPLATE
+<%@page contentType="text/html;charset=UTF-8"%>
+<%@page pageEncoding="UTF-8"%>
+<%@ page session="false" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
+<html>
+<head>
+  <META http-equiv="Content-Type" content="text/html;charset=UTF-8">
+  <title><fmt:message key="welcome.title"/></title>
+  <link rel="stylesheet" href="<c:url value="/resources/blueprint/screen.css" />" type="text/css" media="screen, projection">
+  <link rel="stylesheet" href="<c:url value="/resources/blueprint/print.css" />" type="text/css" media="print">
+  <!--[if lt IE 8]>
+    <link rel="stylesheet" href="<c:url value="/resources/blueprint/ie.css" />" type="text/css" media="screen, projection">
+  <![endif]-->
+</head>
+<body>
+<div class="container">  
+  <h1>
+    <fmt:message key="welcome.title"/>
+  </h1>
+  <p>
+    Locale = ${pageContext.response.locale}
+  </p>
+  <hr>  
+  <ul>
+    <li> <a href="?locale=en_us">us</a> |  <a href="?locale=en_gb">gb</a> | <a href="?locale=es_es">es</a> | <a href="?locale=de_de">de</a> </li>
+  </ul>
+  <ul>
+    <li><a href="account">@Controller Example</a></li>
+  </ul>
+</div>
+</body>
+</html>
+SAMPLE_SPRING_VIEW_WELCOME_TEMPLATE
+
+SAMPLE_SPRING_MESSAGE_PROPERTIES_CONTENTS=<<SAMPLE_SPRING_MESSAGE_PROPERTIES_TEMPLATE
+welcome.title=Congratulations! Spring is running!
+typeMismatch=could not be parsed
+SAMPLE_SPRING_MESSAGE_PROPERTIES_TEMPLATE
+
+SAMPLE_SPRING_LOG4_XML_CONTENTS=<<SAMPLE_SPRING_LOG4_XML_TEMPLATE
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE log4j:configuration PUBLIC "-//LOGGER" "log4j.dtd">
+
+<log4j:configuration xmlns:log4j="http://jakarta.apache.org/log4j/">
+
+  <!-- Appenders -->
+  <appender name="console" class="org.apache.log4j.ConsoleAppender">
+    <param name="Target" value="System.out" />
+    <layout class="org.apache.log4j.PatternLayout">
+      <param name="ConversionPattern" value="%-5p: %c - %m%n" />
+    </layout>
+  </appender>
+
+  <!-- 3rdparty Loggers -->
+  <logger name="org.springframework.core">
+    <level value="info" />
+  </logger>
+
+  <logger name="org.springframework.beans">
+    <level value="info" />
+  </logger>
+  
+  <logger name="org.springframework.context">
+    <level value="info" />
+  </logger>
+
+  <logger name="org.springframework.web">
+    <level value="info" />
+  </logger>
+
+  <!-- Root Logger -->
+  <root>
+    <priority value="warn" />
+    <appender-ref ref="console" />
+  </root>
+  
+</log4j:configuration>
+SAMPLE_SPRING_LOG4_XML_TEMPLATE
+
+SAMPLE_JAVA_SERVLET_WEB_XML_CONTENTS=<<SAMPLE_JAVA_SERVLET__WEB_XML_TEMPLATE
+<!DOCTYPE web-app PUBLIC
+ "-//Sun Microsystems, Inc.//DTD Web Application 2.3//EN"
+ "http://java.sun.com/dtd/web-app_2_3.dtd" >
+
+<web-app>
+  <display-name>Sample Servlet</display-name>
+    <servlet>
+        <servlet-name>SampleServlet</servlet-name>
+        <servlet-class>[PACKAGE].SampleServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>SampleServlet</servlet-name>
+        <url-pattern>/[WAR_FINAL_NAME]/*</url-pattern>
+    </servlet-mapping>
+</web-app>
+
+SAMPLE_JAVA_SERVLET__WEB_XML_TEMPLATE
+
+
+
+SAMPLE_SPRING_WEB_XML_CONTENTS=<<SAMPLE_SPRING_WEB_XML_TEMPLATE
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+
+  <!-- Reads request input using UTF-8 encoding -->
+  <filter>
+    <filter-name>characterEncodingFilter</filter-name>
+    <filter-class>org.springframework.web.filter.CharacterEncodingFilter</filter-class>
+    <init-param>
+      <param-name>encoding</param-name>
+      <param-value>UTF-8</param-value>
+    </init-param>
+    <init-param>
+      <param-name>forceEncoding</param-name>
+      <param-value>true</param-value>
+    </init-param>
+  </filter>
+
+  <filter-mapping>
+    <filter-name>characterEncodingFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
+  
+  <!-- Handles all requests into the application -->
+  <servlet>
+    <servlet-name>Spring MVC Dispatcher Servlet</servlet-name>
+    <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+    <init-param>
+      <param-name>contextConfigLocation</param-name>
+      <param-value>
+        /WEB-INF/spring/appServlet/servlet-context.xml
+      </param-value>
+    </init-param>
+    <load-on-startup>1</load-on-startup>
+  </servlet>
+
+  <servlet-mapping>
+    <servlet-name>Spring MVC Dispatcher Servlet</servlet-name>
+    <url-pattern>/</url-pattern>
+  </servlet-mapping>
+
+</web-app>
+
+SAMPLE_SPRING_WEB_XML_TEMPLATE
+
+SAMPLE_SPRING_SERVLET_CONTEXT_CONTENTS=<<SAMPLE_SPRING_SERVLET_CONTEXT_TEMPLATE
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:context="http://www.springframework.org/schema/context"
+  xmlns:mvc="http://www.springframework.org/schema/mvc"
+  xsi:schemaLocation="http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc-3.0.xsd
+    http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+    http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd">
+
+  <!-- Scans the classpath of this application for @Components to deploy as beans -->
+  <context:component-scan base-package="[PACKAGE]" />
+
+  <!-- Configures the @Controller programming model -->
+  <mvc:annotation-driven />
+
+  <!-- Forwards requests to the "/" resource to the "welcome" view -->
+  <mvc:view-controller path="/" view-name="welcome"/>
+
+  <!-- Configures Handler Interceptors -->  
+  <mvc:interceptors>
+    <!-- Changes the locale when a 'locale' request parameter is sent; e.g. /?locale=de -->
+    <bean class="org.springframework.web.servlet.i18n.LocaleChangeInterceptor" />
+  </mvc:interceptors>
+
+  <!-- Handles HTTP GET requests for /resources/** by efficiently serving up static resources in the ${webappRoot}/resources/ directory -->
+  <mvc:resources mapping="/resources/**" location="/resources/" />
+
+  <!-- Saves a locale change using a cookie -->
+  <bean id="localeResolver" class="org.springframework.web.servlet.i18n.CookieLocaleResolver" />
+
+  <!-- Application Message Bundle -->
+  <bean id="messageSource" class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
+    <property name="basename" value="/WEB-INF/messages/messages" />
+    <property name="cacheSeconds" value="0" />
+  </bean>
+
+  <!-- Resolves view names to protected .jsp resources within the /WEB-INF/views directory -->
+  <bean class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+    <property name="prefix" value="/WEB-INF/views/"/>
+    <property name="suffix" value=".jsp"/>
+  </bean>
+
+</beans>
+SAMPLE_SPRING_SERVLET_CONTEXT_TEMPLATE
+
+
+
+
+LOG4J_DEFAULTS_CONTENTS=<<LOG4J_DEFAULTS_TEMPLATE
+log4j.appender.[PACKAGE].CONSOLE_APPENDER=org.apache.log4j.ConsoleAppender
+log4j.appender.[PACKAGE].CONSOLE_APPENDER.layout=org.apache.log4j.PatternLayout
+log4j.appender.[PACKAGE].CONSOLE_APPENDER.layout.ConversionPattern=%d{ISO8601}\t\t[%-5p]\t\t[%t]\t%m %n
+log4j.logger.[PACKAGE] = ERROR, [PACKAGE].CONSOLE_APPENDER
+LOG4J_DEFAULTS_TEMPLATE
+
+LOG4J_DEVELOPMENT_CONTENTS=<<LOG4J_DEVELOPMENT_TEMPLATE
+log4j.appender.[PACKAGE].CONSOLE_APPENDER=org.apache.log4j.ConsoleAppender
+log4j.appender.[PACKAGE].CONSOLE_APPENDER.layout=org.apache.log4j.PatternLayout
+log4j.appender.[PACKAGE].CONSOLE_APPENDER.layout.ConversionPattern=%d{ISO8601}\t\t[%-5p]\t\t[%t]\t%m %n
+log4j.logger.[PACKAGE] = TRACE, [PACKAGE].CONSOLE_APPENDER
+LOG4J_DEVELOPMENT_TEMPLATE
+
+LOG4J_TEST_CONTENTS=<<LOG4J_TEST_TEMPLATE
+log4j.appender.[PACKAGE].CONSOLE_APPENDER=org.apache.log4j.ConsoleAppender
+log4j.appender.[PACKAGE].CONSOLE_APPENDER.layout=org.apache.log4j.PatternLayout
+log4j.appender.[PACKAGE].CONSOLE_APPENDER.layout.ConversionPattern=%d{ISO8601}\t\t[%-5p]\t\t[%t]\t%m %n
+log4j.logger.[PACKAGE] = DEBUG, [PACKAGE].CONSOLE_APPENDER
+LOG4J_TEST_TEMPLATE
+
+JAR_RUN_INSTRUCTIONS=<<JAR_RUN_INSTRUCTIONS_TEMPLATE
+Then issue the commands:
+
+cd [artifact_dir]
+./bin/runit
+
+where 'artifact_dir' is the directory containing the artifact you've just created.
+JAR_RUN_INSTRUCTIONS_TEMPLATE
+
+WAR_RUN_INSTRUCTIONS=<<WAR_RUN_INSTRUCTIONS_TEMPLATE
+Then issue the commands:
+
+cd [artifact_dir]
+./bin/runit
+
+where 'artifact_dir' is the directory containing the artifact you've just created.
+
+If you're running under OS X you, after about 10 seconds, you should see the browser
+open with a web page indicating success. 
+
+The Jetty instance running the application will be killed automatically after the page is displayed.
+
+WAR_RUN_INSTRUCTIONS_TEMPLATE
+
+SPRINGWAR_RUN_INSTRUCTIONS=<<SPRINGWAR_RUN_INSTRUCTIONS_TEMPLATE
+Then issue a command similar to:
+
+Don't know yet Spring
+
+java -cp ./target/sampleproduct-1.0-jar-with-dependencies.jar  com.example.sampleproduct.Sample
+SPRINGWAR_RUN_INSTRUCTIONS_TEMPLATE
+
+WAR_RUNIT_CONTENTS=<<WAR_RUNIT_TEMPLATE
+#!/usr/bin/env ruby
+mvn_cmd = \%\{mvn jetty:run >/dev/null &\}
+\`\#\{mvn_cmd\}\`
+#TODO loop to detect when jetty is running
+Kernel.sleep(10)
+browser_cmd = \%\{open http://localhost:8080/sample\}
+\`\#\{browser_cmd\}\`
+Kernel.sleep(3)
+maven_ps = \`ps alwwwx | grep -v grep | grep jetty\`
+maven_pid = maven_ps.split[1].strip.chomp
+kill_cmd = \"kill -9 \#\{maven_pid\}\"
+\`\#\{kill_cmd\}\`
+WAR_RUNIT_TEMPLATE
+
+LICENSE_CONTENTS=<<LICENSE_CONTENTS_TEMPLATE
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+LICENSE_CONTENTS_TEMPLATE
+
+EXECUTABLE_TYPE_INFO = {
+  :jar => {:project_description => 'JAR-based Maven Project',
+           :run_instructions => JAR_RUN_INSTRUCTIONS,
+           :default_directories => DEFAULT_PROJECT_DIRECTORIES,
+           :project_specific_directories => nil,
+           :package_specific_directories => PACKAGE_SPECIFIC_DIRECTORIES,
+           :additional_git_ignore_files => JAR_GIT_IGNORE_CONTENTS,
+           :pom_packaging => 'jar',
+           :pom => POM_CONTENTS_JAR,
+           :pom_build_name => nil},
+  :war => {:project_description => 'servlet (WAR) Maven Project',
+           :run_instructions => WAR_RUN_INSTRUCTIONS,
+           :default_directories => DEFAULT_PROJECT_DIRECTORIES,
+           :project_specific_directories => DEFAULT_WAR_PROJECT_DIRECTORIES,
+           :package_specific_directories => PACKAGE_SPECIFIC_DIRECTORIES,
+           :additional_git_ignore_files => WAR_GIT_IGNORE_CONTENTS,
+           :pom_packaging => 'war',
+           :pom => POM_CONTENTS_WAR,
+           :pom_build_name => 'sample' },
+  :springwar => {:project_description => 'Spring MVC WAR-based Maven Project',
+           :run_instructions => SPRINGWAR_RUN_INSTRUCTIONS,
+           :default_directories => DEFAULT_PROJECT_DIRECTORIES,
+           :project_specific_directories => DEFAULT_SPRING_WAR_PROJECT_DIRECTORIES,
+           :package_specific_directories => PACKAGE_SPECIFIC_DIRECTORIES,
+           :additional_spring_war_directories => ADDITIONAL_SPRING_WAR_DIRECTORIES,
+           :additional_git_ignore_files => SPRINGWAR_GIT_IGNORE_CONTENTS,
+           :pom_packaging => 'war',
+           :pom => POM_CONTENTS_SPRINGWAR,
+           :pom_build_name => 'sample' }
+}
+
+class EEJar
+  
+  class << self
+    
+    def run
+      eejar = EEJar.new
+      eejar.run
+    end
+    
+  end
+  
+  def initialize
+    @debug = false
+    @debug = FORCE_DEBUG if defined?(FORCE_DEBUG)
+    
+    @starting_dir = Dir.getwd
+    if @debug
+      @starting_dir = File.join(@starting_dir,'debug')
+    end
+    @executable_type = EXECUTABLE_TYPE
+    @executable_info = EXECUTABLE_TYPE_INFO[@executable_type]
+  end
+  
+  def debug(msg)
+    if @debug
+      puts msg
+    end
+  end
+  
+  def run
+    display_banner
+    get_user_input
+    create_directory_structure
+    create_project_files
+    create_git_repository
+    run_artifact
+  end
+  
+  def display_banner
+    quiet_mode = ARGV.detect{|arg| arg =~ /-q/}
+    if quiet_mode.nil? and (not NO_BANNER)
+      banner = BANNER.gsub(/\[EXECUTABLE_NAME\]/,EXECUTABLE_NAME)
+      project_description = @executable_info[:project_description]
+      banner = banner.gsub(/\[PROJECT_DESCRIPTION\]/,project_description)
+      run_instructions = @executable_info[:run_instructions]
+      banner = banner.gsub(/\[RUN_INSTRUCTIONS\]/,run_instructions)
+      puts banner
+    end
+  end
+  
+  def get_user_input
+    @group_id = get_input_line("Enter group id (#{DEFAULT_GROUP_ID})", true).strip.chomp
+    @group_id = DEFAULT_GROUP_ID if @group_id == ""
+    @artifact_id = get_input_line("Enter artifact ID")
+    @artifact_version = get_input_line("Enter version (#{DEFAULT_ARTIFACT_VERSION})", true).strip.chomp
+    @artifact_version = DEFAULT_ARTIFACT_VERSION if @artifact_version == ''
+    default_package = "#{@group_id}.#{@artifact_id}"
+    @package = get_input_line("Enter package (#{default_package})", true).strip.chomp
+    @package = default_package if @package == ""
+  end
+  
+  def get_input_line(prompt, allow_empty = false)
+    input_line = nil
+    while (input_line.nil? || input_line == '') 
+      STDOUT.print "#{prompt} : "
+      input_line = STDIN.gets
+      unless allow_empty
+        input_line = input_line.strip.chomp
+      end
+    end
+    return input_line
+  end
+
+  def create_directory_structure
+    # Clean out existing directory
+    delete_tree_with_prompt(File.join(@starting_dir,@artifact_id))
+    # Create standard directories
+    default_directories = @executable_info[:default_directories]
+    default_directories.each do |relative_directory|
+      qualified_directory = File.join(@starting_dir,@artifact_id,relative_directory)
+      debug("About to create " + qualified_directory)
+      FileUtils.mkdir_p(qualified_directory)
+    end
+    project_specific_directories = @executable_info[:project_specific_directories]
+    if project_specific_directories
+      project_specific_directories.each do |relative_directory|
+        qualified_directory = File.join(@starting_dir,@artifact_id,relative_directory)
+        debug("About to create " + qualified_directory)
+        FileUtils.mkdir_p(qualified_directory)
+      end
+    end
+    package_specific_directories = @executable_info[:package_specific_directories]
+    if package_specific_directories
+      # Create package-specific directories
+      package_specific_directories.each do |partial_package_directory|
+        package_dir = @package.gsub(/\./,'/')
+        qualified_directory = File.join(@starting_dir,@artifact_id,partial_package_directory.sub(/\[PACKAGE\]/,package_dir))
+        debug("About to create " + qualified_directory)
+        FileUtils.mkdir_p(qualified_directory)
+      end
+    end
+    additional_spring_war_directories = @executable_info[:additional_spring_war_directories]
+    if additional_spring_war_directories
+      additional_spring_war_directories.each do |relative_directory|
+        qualified_directory = File.join(@starting_dir,@artifact_id,relative_directory)
+        debug("About to create " + qualified_directory)
+        FileUtils.mkdir_p(qualified_directory)
+      end
+    end
+    
+  end
+  
+  def delete_tree_with_prompt(root_dir)
+    if File.exists?(root_dir)
+      qualified_path = File.expand_path(root_dir)
+      yes_no = get_input_line("Warning: About to delete #{qualified_path}. [Y/N]")
+      if yes_no.downcase =~ /^y/
+        puts "Deleting #{qualified_path}"
+        FileUtils.rm_rf(qualified_path)
+      end
+    end
+  end
+  
+  def create_project_files
+    create_gitignore
+    create_pom
+    create_placeholder_files
+    create_configuration_files
+    create_sample_files
+    create_run_files
+  end
+  
+  def create_gitignore
+    git_ignore_file_name = File.join(@starting_dir,@artifact_id,".gitignore")
+    debug("Creating #{git_ignore_file_name}")
+    File.open(git_ignore_file_name,'w') do |git_ignore_file|
+      git_ignore_file.puts STANDARD_GIT_IGNORE_CONTENTS
+      additional_git_ignore_files = @executable_info[:additional_git_ignore_files]
+      if additional_git_ignore_files
+        git_ignore_file.puts additional_git_ignore_files  
+      end
+    end
+  end
+  
+  def create_pom
+    options = {}
+    options[:pom_packaging] = @executable_info[:pom_packaging]
+    options[:pom_build_name] = @executable_info[:pom_build_name]
+    options[:use_package_dir] = false
+    contents = @executable_info[:pom]
+    create_sample_file(contents, nil , "pom.xml",options )
+  end
+  
+  def create_placeholder_files
+    docs_placeholder_file_name = File.join(@starting_dir,@artifact_id,'README')
+    FileUtils.touch(docs_placeholder_file_name)
+    
+    file_name = File.join(@starting_dir,@artifact_id,'docs','LICENSE')
+    File.open(file_name,'w') do |file|
+      file.puts LICENSE_CONTENTS
+    end
+    
+    javadocs_placeholder_file_name = File.join(@starting_dir,@artifact_id,'docs/javadocs','index.html')
+    FileUtils.touch(javadocs_placeholder_file_name)
+  end
+  
+  def create_sample_files
+    if @executable_type == :jar
+      create_sample_java_file
+      create_sample_java_test_file
+    elsif @executable_type == :war
+      create_sample_java_servlet_file
+      create_sample_java_servlet_test_file
+      create_sample_web_xml_file
+    elsif @executable_type == :springwar
+      create_sample_spring_web_xml_file
+      create_sample_spring_servlet_context_file
+      create_sample_spring_java_files
+    end
+  end
+  
+  def create_sample_java_file
+    contents = SAMPLE_JAVA_CONTENTS
+    create_sample_file(contents,'/src/main/java','Sample.java')
+  end
+
+  def create_sample_java_test_file
+    contents = SAMPLE_JAVA_TEST_CONTENTS
+    create_sample_file(contents,'/src/test/java','SampleTest.java')
+  end
+
+  def create_sample_java_servlet_file
+    contents = SAMPLE_JAVA_SERVLET_CONTENTS
+    create_sample_file(contents,'/src/main/java','SampleServlet.java')
+  end
+
+  def create_sample_java_servlet_test_file
+    contents = SAMPLE_JAVA_SERVLET_TEST_CONTENTS
+    create_sample_file(contents,'/src/test/java','SampleServletTest.java')
+  end
+
+
+  def create_sample_web_xml_file
+    contents = SAMPLE_JAVA_SERVLET_WEB_XML_CONTENTS
+    create_sample_file(contents,'/src/main/webapp/WEB-INF','web.xml',{:use_package_dir => false})
+  end
+
+  def create_sample_spring_web_xml_file
+    contents = SAMPLE_SPRING_WEB_XML_CONTENTS
+    create_sample_file(contents,'/src/main/webapp/WEB-INF','web.xml',{:use_package_dir => false})
+  end
+
+  def create_sample_spring_servlet_context_file
+    contents = SAMPLE_SPRING_SERVLET_CONTEXT_CONTENTS
+    create_sample_file(contents,'/src/main/webapp/WEB-INF/spring/appServlet','servlet-context.xml',{:use_package_dir => false})
+  end
+  
+  def create_sample_spring_java_files
+    contents = SAMPLE_SPRING_MODEL_CONTENTS
+    create_sample_file(contents,'/src/main/java','Account.java')
+    contents = SAMPLE_SPRING_CONTROLLER_CONTENTS
+    create_sample_file(contents,'/src/main/java','AccountController.java')
+    contents = SAMPLE_SPRING_EXCEPTION_CONTENTS
+    create_sample_file(contents,'/src/main/java','ResourceNotFoundException.java')
+    contents = SAMPLE_SPRING_VIEW_CREATE_CONTENTS
+    create_sample_file(contents,'/src/main/webapp/WEB-INF/views/account','createForm.jsp',{:use_package_dir => false})
+    contents = SAMPLE_SPRING_VIEW_VIEW_CONTENTS
+    create_sample_file(contents,'/src/main/webapp/WEB-INF/views/account','view.jsp',{:use_package_dir => false})
+    contents = SAMPLE_SPRING_VIEW_WELCOME_CONTENTS
+    create_sample_file(contents,'/src/main/webapp/WEB-INF/views','welcome.jsp',{:use_package_dir => false})
+    contents = SAMPLE_SPRING_MESSAGE_PROPERTIES_CONTENTS
+    create_sample_file(contents,'/src/main/webapp/WEB-INF/messages','message.properties',{:use_package_dir => false})
+    contents = SAMPLE_SPRING_LOG4_XML_CONTENTS
+    create_sample_file(contents,'/src/main/resources','log4.xml',{:use_package_dir => false})
+  end
+  
+  def create_sample_file(contents,relative_fragment_base = nil , file_name = nil, options = {})
+    template = String.new(contents)
+    options = {:use_package_dir => true}.merge(options)
+    if options[:pom_packaging]
+      template = template.gsub(/\[POM_PACKAGING\]/,options[:pom_packaging])
+    end
+    if options[:pom_build_name]
+      template = template.gsub(/\[WAR_FINAL_NAME\]/,options[:pom_build_name] )
+    end
+    template = template.gsub(/\[COPYRIGHT_MESSAGE\]/,DEFAULT_SOURCE_CODE_COPYRIGHT_MESSAGE)
+    template = template.gsub(/\[PACKAGE\]/,@package)
+    template = template.gsub(/\[ARTIFACT_ID\]/,@artifact_id)
+    template = template.gsub(/\[ARTIFACT_VERSION\]/,@artifact_version)
+    package_dir = @package.gsub(/\./,'/')
+    file_name = File.join(@starting_dir,@artifact_id,relative_fragment_base || '', options[:use_package_dir] ? package_dir : '',file_name)
+    debug("Creating #{file_name}")
+    File.open(file_name,'w') do |file|
+      file.puts template
+    end
+  end
+  
+  def create_configuration_files
+    create_configuration_file('log4j-defaults.properties',LOG4J_DEFAULTS_CONTENTS)
+    create_configuration_file('log4j-development.properties',LOG4J_DEVELOPMENT_CONTENTS)
+    create_configuration_file('log4j-test.properties',LOG4J_TEST_CONTENTS)
+  end
+  
+  def create_configuration_file(name,contents)
+    package_dir = @package.gsub(/\./,'/')
+    directory_prefix = File.join(@starting_dir,@artifact_id,'/src/main/resources',package_dir)
+    contents = contents.gsub(/\[PACKAGE\]/,@package)
+    full_log4j_configuration_file = File.join(directory_prefix,name)
+    debug("Creating #{full_log4j_configuration_file}")
+    File.open(full_log4j_configuration_file,'w') do |file|
+      file.puts contents
+    end
+  end
+  
+  def create_run_files
+    #java -cp ./target/sampleproduct-1.0-jar-with-dependencies.jar  com.example.sampleproduct.Sample
+    run_file_name = File.join(@starting_dir,@artifact_id,'bin','runit')
+    File.open(run_file_name,'w') do |file|
+      if @executable_type == :jar
+        file.puts "#!/usr/bin/env bash"
+        cmd = %{\nmvn package >/dev/null\njava -cp ./target/#{@artifact_id}-#{@artifact_version}-jar-with-dependencies.jar  #{@package}.Sample}
+      elsif @executable_type == :war
+        cmd = WAR_RUNIT_CONTENTS
+      elsif @executable_type == :springwar
+        file.puts "#!/usr/bin/env bash"
+      end
+      file.puts cmd
+    end
+    File.chmod(0755,run_file_name)
+  end
+  
+  def create_git_repository
+    Dir.chdir( File.join(@starting_dir,@artifact_id)) do |dir|
+      `git init`
+      `git add .`
+      `git commit -a -m "Initial import"`
+    end
+  end
+  
+  def run_artifact
+    runit = ARGV.detect{|arg| arg =~ /--runit/}
+    if runit
+      if @executable_type == :jar
+        puts "\n\n"
+      end
+      Dir.chdir( File.join(@starting_dir,@artifact_id))
+      Kernel.exec('./bin/runit')
+    end
+  end
+end
+
+if $0 == __FILE__
+
+  EEJar.run
+  
+end

@@ -1,0 +1,7 @@
+#!/bin/bash
+
+
+CONFIGURATION_FILE="${1:-adapter.yml}"
+export JAVA_OPTS="-Dservername=adpaterserver"
+runtlserver adapter-server tracelink.adapter.APIRunner  5007 ${CONFIGURATION_FILE}
+

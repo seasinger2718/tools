@@ -1,0 +1,6 @@
+#!/bin/bash
+
+export REMOTE_DIR="${REMOTE_BASE_DIR}/Everything/ActivitiesTracelink/habari_trunk"
+cd ${REMOTE_DIR}
+tail -n 500 -f ./habari.log
+

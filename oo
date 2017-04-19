@@ -1,0 +1,8 @@
+#!/bin/tcsh
+
+setenv DISPLAY :0.0
+setenv OO_HOME /Applications/OpenOffice.org1.1.2
+setenv OO_PROG ${OO_HOME}/program
+setenv DYLD_LIBRARY_PATH ${OO_PROG}:/${OO_PROG}/filter
+cd ${OO_PROG}
+/usr/bin/open-x11 soffice

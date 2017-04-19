@@ -1,0 +1,26 @@
+#!/bin/tcsh
+
+# The ':q' option quotes the entire 'phrase' passed as the first command-line
+# argument for svnsave. 
+# This is vital to get a quoted phrase on the svnsave command line
+# in as single argument surrounded by literal quotes for the invoked command
+
+if ! ($# == 2)  then
+	echo \
+'\
+Usage: subsavefile  <filename> "change description in quotes"\
+\
+Do a subversion save of the specified file\
+Apply the supplied change description\
+'
+#	if ! (-e $1)  then
+#		echo "Error: filename $1 must exist!"
+#	endif
+	exit(1)
+endif
+
+set filename = ${1:q}
+set logmsg = ${2:q}
+svn ci "${filename}" -m "${logmsg}"
+unset logmsg
+unset filename

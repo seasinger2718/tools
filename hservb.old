@@ -1,0 +1,28 @@
+#!/bin/bash
+
+#BASEDIR=${BASEDIR:-/home/tflynn/Everything/ActivitiesTracelink/habari_trunk}
+#cd ${BASEDIR}
+
+BASE_DIR=`pwd`
+HABARI_VERSION="5.1"
+SNAPSHOT="-SNAPSHOT"
+JAR_FILE="habari-server-${HABARI_VERSION:-5.0}${SNAPSHOT}.jar"
+LOG_FILE=habari.log
+JAVA_OPTS="-Xms256m -Xmx1000m -XX:MaxPermSize=256m"
+# -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005
+# -Xdebug -Xrunjdwp:server=y,transport=dt_socket,address=5005,suspend=n" 
+# Plain debug options
+#DEBUG_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005" 
+# JRebel and Debug options
+DEBUG_OPTIONS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 -javaagent:/opt/jars/jrebel.jar -DHOME_ROOT=/home/tflynn" 
+
+CONFIGURATION_FILE="${1:-habari.yml}"
+
+#CMD="rm -rf ./${LOG_FILE}"
+CMD="rm -rf habari*log*"
+echo "$CMD"
+$CMD
+
+CMD="java -cp ./target/${JAR_FILE} ${JAVA_OPTS}  ${DEBUG_OPTIONS} tracelink.habari.APIRunner server ${CONFIGURATION_FILE}"
+echo "$CMD"
+($CMD >>all.log 2>&1) &

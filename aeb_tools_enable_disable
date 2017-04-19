@@ -1,0 +1,344 @@
+#!/usr/bin/env bash
+
+#
+# Crude AEB / SDP Automation
+#
+
+log_dt_stamp=$(date +%Y%m%d-%H%M%S)
+export AEB_LOG_FILE="$(pwd)/aeb_commands_${log_dt_stamp}.log"  
+export AEB_ARTIFACT_BASE_NAME=${AEB_ARTIFACT_BASE_NAME:-idpro-nettest}
+export AEB_PRODUCT_TAG=consumer
+
+export PURE_EBT=true # true / false
+echo "PURE_EBT ${PURE_EBT}"
+
+
+aeb-vars() {
+  env | grep '^AEB' | sort
+}
+
+aeb-set-artifact-name() {
+  export AEB_ARTIFACT_BASE_NAME=$1
+}  
+
+aeb-clean() {
+  rm *.zip
+  rm *.log
+  if [ "$AEB_WORKSPACE" != "" ]; then
+    if [ -d ${AEB_TMPDIR} ]; then
+      rm -rf ${AEB_TMPDIR}
+    fi
+  fi
+}
+
+aeb-git-version() {
+  if [ -d '.git' ]; then
+    echo "$(git rev-parse --short HEAD)"
+  else
+    echo ""
+  fi
+}
+
+aeb-setup() {
+
+  # Tie in with SDP
+  export AEB_DEPLOYMENT_ENV=${AEB_DEPLOYMENT_ENV:-${Z_DEPLOYMENT_ENV_TYPE:-dev}}
+
+  export AEB_DEFAULT_S3_BUCKET="elasticbeanstalk-us-west-2-${AWS_ACCOUNT_ID}"
+  export AEB_BASE_S3_URL="s3://${AEB_DEFAULT_S3_BUCKET}/${AEB_ARTIFACT_BASE_NAME}"
+  export AEB_CONFIG_BASE_DIR=${AEB_CONFIG_BASE_DIR:-/Users/tflynn/Everything/projects/sdp_test_data/ebt/${AEB_ARTIFACT_BASE_NAME}}
+  export AEB_ARTIFACTS_DIR=${AEB_CONFIG_BASE_DIR}/artifacts
+  export AEB_CONFIGS_DIR=${AEB_CONFIG_BASE_DIR}/configs
+  export AEB_TOOLS_DIR=${IAEB_CONFIG_BASE_DIR}/tools
+  # Only calculate once regarless of # of invocations
+  export AEB_ARTIFACT_DATESTAMP=${AEB_ARTIFACT_DATESTAMP:-$(date +%Y%m%d-%H%M%S)} 
+  export AEB_GIT_VERSION=$(aeb-git-version)
+  if [ "${AEB_GIT_VERSION}" != "" ]; then
+    export AEB_GIT_VERSION_SUFFIX="-${AEB_GIT_VERSION}"
+  else
+    export AEB_GIT_VERSION_SUFFIX=""
+  fi
+  export AEB_ARTIFACT_ZIP_NAME="${AEB_ARTIFACT_BASE_NAME}-${AEB_ARTIFACT_DATESTAMP}${AEB_GIT_VERSION_SUFFIX}.zip"
+  
+  export AEB_WORKSPACE=${WORKSPACE:-`pwd`}
+  export AEB_TMPDIR="${AEB_WORKSPACE}/tmp"
+  mkdir -p ${AEB_TMPDIR}
+  
+  
+  aeb-vars
+  # echo "Logging to ${AEB_LOG_FILE}"
+  #/bin/rm -rf ${AEB_LOG_FILE}
+}
+
+aeb-setup-deployer-work-dir(){
+  aeb-setup
+  export AEB_DEPLOYER_WORK_DIR=${AEB_TMPDIR}/deployer
+  rm -rf ${AEB_DEPLOYER_WORK_DIR}
+  mkdir -p ${AEB_DEPLOYER_WORK_DIR}
+  # Project stores everthing in $PROJECT_HOME/z/deployer/<env>
+  rsync -a ${AEB_WORKSPACE}/z/deployer/${AEB_DEPLOYMENT_ENV}/  ${AEB_DEPLOYER_WORK_DIR}
+  export AEB_CONFIG_BASE_DIR=${AEB_DEPLOYER_WORK_DIR}
+  # Copy build artifact
+  cp ${AEB_WORKSPACE}/${AEB_RAW_ARTIFACT} ${AEB_DEPLOYER_WORK_DIR}
+  # Force setup again to point to new location for deployer files
+  aeb-setup
+}
+
+aeb-log() {
+  dt_stamp=$(date +%Y%m%d-%H%M%S)
+  echo "${dt_stamp} $1" >> ${AEB_LOG_FILE}
+  echo "${dt_stamp} $1"
+}
+
+aeb-test-setup() {
+  aeb-setup
+  env | grep '^AEB'
+}
+
+aeb-env(){
+  aeb-setup
+  out=$(env | grep '^AEB' | sort )
+  aeb-log "$out"
+}
+
+# Utility functions for AEB components
+aeb-zip(){
+  aeb-env
+  pushd ${AEB_ARTIFACTS_DIR} &>/dev/null
+  pwd
+  aeb-log "cd $(pwd); zip -r ../${AEB_ARTIFACT_ZIP_NAME} ."   
+  zip -r ../${AEB_ARTIFACT_ZIP_NAME} .
+  popd &>/dev/null
+}
+
+aeb-cp(){
+  #aws s3 cp ../idpro-nettest.zip s3://elasticbeanstalk-us-west-2-742630462602/idpro-nettest/idpro-nettest-20160714-0912.zip
+  aeb-zip # Maintain artifact naming
+  pushd ${AEB_ARTIFACTS_DIR} &>/dev/null
+  pwd
+  aeb-log  "cd $(pwd) ; aws s3 cp ../${AEB_ARTIFACT_ZIP_NAME} ${AEB_BASE_S3_URL}/${AEB_ARTIFACT_ZIP_NAME}"
+  aws s3 cp ../${AEB_ARTIFACT_ZIP_NAME} ${AEB_BASE_S3_URL}/${AEB_ARTIFACT_ZIP_NAME}
+  popd &>/dev/null
+}
+
+aeb-app-version(){
+
+  export AEB_VERSION_LABEL="${1:-${AEB_GIT_VERSION}}"
+  if [ "${AEB_VERSION_LABEL}" == "" ]; then
+    aeb-log "Must specify a version"
+    return
+  fi
+
+  # aws elasticbeanstalk create-application-version --application-name idpro-nettest --version-label v4 --description "idpro network configuration test"  --source-bundle S3Bucket="elasticbeanstalk-us-west-2-742630462602",S3Key="idpro-nettest/idpro-nettest-20160714-0912.zip" --auto-create-application
+
+  aeb-cp # Maintain artifact naming
+
+  aeb-log "aws elasticbeanstalk create-application-version \\"   
+  aeb-log "                     --application-name ${AEB_ARTIFACT_BASE_NAME} \\"
+  aeb-log "                     --version-label ${AEB_VERSION_LABEL} \\" 
+  aeb-log "                     --description \"${AEB_ARTIFACT_BASE_NAME} ${AEB_DEPLOYMENT_ENV} deployment\"\\" 
+  aeb-log "                     --source-bundle S3Bucket=\"${AEB_DEFAULT_S3_BUCKET}\",S3Key=\"${AEB_ARTIFACT_BASE_NAME}/${AEB_ARTIFACT_ZIP_NAME}\"\\" 
+  aeb-log "                     --auto-create-application" 
+  
+  aws elasticbeanstalk create-application-version \
+                       --application-name ${AEB_ARTIFACT_BASE_NAME} \
+                       --version-label ${AEB_VERSION_LABEL} \
+                       --description "${AEB_ARTIFACT_BASE_NAME} ${AEB_DEPLOYMENT_ENV} deployment"\
+                       --source-bundle S3Bucket="${AEB_DEFAULT_S3_BUCKET}",S3Key="${AEB_ARTIFACT_BASE_NAME}/${AEB_ARTIFACT_ZIP_NAME}"\
+                       --auto-create-application
+}
+
+
+
+aeb-create-env(){
+  # aws elasticbeanstalk create-environment --application-name idpro-nettest --environment-name idpro-nettest-dev-4 --version-label v4 --solution-stack-name "64bit Amazon Linux 2016.03 v2.1.3 running Java 8"
+
+  export AEB_VERSION_LABEL="${1:-${AEB_GIT_VERSION}}"
+  if [ "${AEB_VERSION_LABEL}" == "" ]; then
+    aeb-log "Must specify a version"
+    return
+  fi
+
+  export AEB_MOST_RECENT_VERSION_LABEL=${AEB_VERSION_LABEL}
+  
+  tag_service_name=$(echo ${AEB_ARTIFACT_BASE_NAME} | cut -d'-' -f1)
+  tags="Key=service,Value=${tag_service_name} Key=product,Value=${AEB_PRODUCT_TAG}"
+  
+  aeb-app-version ${AEB_VERSION_LABEL} # Maintain artifact naming
+
+  aeb-log "aws elasticbeanstalk create-environment \\" 
+  aeb-log "                     --application-name  ${AEB_ARTIFACT_BASE_NAME} \\" 
+  aeb-log "                     --environment-name ${AEB_ARTIFACT_BASE_NAME}-${AEB_DEPLOYMENT_ENV}-${AEB_VERSION_LABEL} \\" 
+  aeb-log "                     --version-label ${AEB_VERSION_LABEL} \\" 
+  aeb-log "                     --solution-stack-name \"64bit Amazon Linux 2016.03 v2.1.3 running Java 8\"" 
+  aeb-log "                     --tags ${tags}"
+
+  aws elasticbeanstalk create-environment \
+                       --application-name  ${AEB_ARTIFACT_BASE_NAME} \
+                       --environment-name ${AEB_ARTIFACT_BASE_NAME}-${AEB_DEPLOYMENT_ENV}-${AEB_VERSION_LABEL} \
+                       --version-label ${AEB_VERSION_LABEL} \
+                       --solution-stack-name "64bit Amazon Linux 2016.03 v2.1.3 running Java 8" \
+                       --tags ${tags}
+  
+  echo "Command history in ${AEB_LOG_FILE}"
+}
+
+
+ebt-setup() {
+  log_dt_stamp=$(date +%Y%m%d-%H%M%S)
+  export AEB_LOG_FILE="$(pwd)/ebt_commands_${log_dt_stamp}.log"  
+  export AEB_ARTIFACT_BASE_NAME=${AEB_ARTIFACT_BASE_NAME:-idpro-nettest}
+  export AEB_PRODUCT_TAG=consumer  
+  
+  
+  aeb-setup
+}
+
+ebt-create-app() {
+  ebt-setup
+  
+  aeb-log "ebt create-application ${AEB_ARTIFACT_BASE_NAME}"
+  ebt create-application ${AEB_ARTIFACT_BASE_NAME}
+  
+}
+
+ebt-zip(){
+  ebt-setup
+  pushd ${AEB_ARTIFACTS_DIR} &>/dev/null
+  pwd
+  aeb-log "cd $(pwd); zip -r ../${AEB_ARTIFACT_ZIP_NAME} ."   
+  zip -r ../${AEB_ARTIFACT_ZIP_NAME} .
+  popd &>/dev/null
+}
+
+ebt-cp(){
+  #aws s3 cp ../idpro-nettest.zip s3://elasticbeanstalk-us-west-2-742630462602/idpro-nettest/idpro-nettest-20160714-0912.zip
+  ebt-zip # Maintain artifact naming
+  pushd ${AEB_ARTIFACTS_DIR} &>/dev/null
+  pwd
+  aeb-log  "cd $(pwd) ; aws s3 cp ../${AEB_ARTIFACT_ZIP_NAME} ${AEB_BASE_S3_URL}/${AEB_ARTIFACT_ZIP_NAME}"
+  cp ../${AEB_ARTIFACT_ZIP_NAME} ${AEB_TMPDIR}
+  popd &>/dev/null
+}
+
+ebt-create-env(){
+
+  # ebt create-environment  idpro-nettest idpro-nettest-dev-4 --config-file /Users/tflynn/Everything/projects/sdp_test_data/ebt/idpro-nettest/configs/ebt_deployer.yml
+
+  export AEB_VERSION_LABEL="${1:-${AEB_GIT_VERSION}}"
+  if [ "${AEB_VERSION_LABEL}" == "" ]; then
+    aeb-log "Must specify a version"
+    return
+  fi
+
+  export AEB_MOST_RECENT_VERSION_LABEL=${AEB_VERSION_LABEL}
+  
+  if [ "$PURE_EBT" == "false" ]; then
+    
+    aeb-cp # Maintain artifact naming
+
+    artifact_url="file://${AEB_TMPDIR}/${AEB_ARTIFACT_ZIP_NAME}"
+
+
+    echo "ebt create-environment  ${AEB_ARTIFACT_BASE_NAME} ${AEB_ARTIFACT_BASE_NAME}-${AEB_DEPLOYMENT_ENV}-${AEB_VERSION_LABEL} \\"
+    echo "                       --config-file /Users/tflynn/Everything/projects/sdp_test_data/ebt/${AEB_ARTIFACT_BASE_NAME}/configs/ebt_deployer.yml"
+
+    aeb-log "ebt create-environment  ${AEB_ARTIFACT_BASE_NAME} ${AEB_ARTIFACT_BASE_NAME}-${AEB_DEPLOYMENT_ENV}-${AEB_VERSION_LABEL} \\"
+    aeb-log "                       --config-file /Users/tflynn/Everything/projects/sdp_test_data/ebt/${AEB_ARTIFACT_BASE_NAME}/configs/ebt_deployer.yml"
+
+    # ebt create-environment  ${AEB_ARTIFACT_BASE_NAME} ${AEB_ARTIFACT_BASE_NAME}-${AEB_DEPLOYMENT_ENV}-${AEB_VERSION_LABEL}   \
+    #                         --config-file /Users/tflynn/Everything/projects/sdp_test_data/ebt/${AEB_ARTIFACT_BASE_NAME}/configs/ebt_deployer.yml
+
+    echo "Command history in ${AEB_LOG_FILE}"
+  
+  else 
+    
+    # Use straight EBT conventions
+    
+    ebt-setup # Maintain artifact naming
+    
+    echo "ebt create-environment  ${AEB_ARTIFACT_BASE_NAME} ${AEB_ARTIFACT_BASE_NAME}-${AEB_DEPLOYMENT_ENV}-${AEB_VERSION_LABEL} \\"
+    echo "                       --config-file /Users/tflynn/Everything/projects/sdp_test_data/ebt/${AEB_ARTIFACT_BASE_NAME}/configs/ebt_deployer.yml"
+
+    aeb-log "ebt create-environment  ${AEB_ARTIFACT_BASE_NAME} ${AEB_ARTIFACT_BASE_NAME}-${AEB_DEPLOYMENT_ENV}-${AEB_VERSION_LABEL} \\"
+    aeb-log "                       --config-file /Users/tflynn/Everything/projects/sdp_test_data/ebt/${AEB_ARTIFACT_BASE_NAME}/configs/ebt_deployer.yml"
+
+    # ebt create-environment  ${AEB_ARTIFACT_BASE_NAME} ${AEB_ARTIFACT_BASE_NAME}-${AEB_DEPLOYMENT_ENV}-${AEB_VERSION_LABEL}   \
+    #                        --config-file /Users/tflynn/Everything/projects/sdp_test_data/ebt/${AEB_ARTIFACT_BASE_NAME}/configs/ebt_deployer.yml
+
+    echo "Command history in ${AEB_LOG_FILE}"
+  
+  fi
+}
+
+ebt-deploy(){
+  #ebt deploy-application-version --application-name testjavaserver-ebt --environment-name testjavaserver-ebt-dev-7 --s3-bucket lookout-services-ebt --s3-key testjavaserver-201107111603.zip --artifact-url https://dl.dropboxusercontent.com/u/12189743/testjavaserver.zip
+
+  export AEB_VERSION_LABEL="${1:-${AEB_GIT_VERSION}}"
+  if [ "${AEB_VERSION_LABEL}" == "" ]; then
+    aeb-log "Must specify a version"
+    return
+  fi
+  
+  latest_environment_label=${AEB_MOST_RECENT_VERSION_LABEL:-${AEB_APP_VERSION_LABEL}}
+  
+  if [ "$PURE_EBT" == "false" ]; then
+
+    aeb-log "ebt deploy-application-version --application-name ${AEB_ARTIFACT_BASE_NAME} \\"
+    aeb-log "                               --environment-name ${AEB_ARTIFACT_BASE_NAME}-${AEB_DEPLOYMENT_ENV}-${latest_environment_label} \\"
+    aeb-log "                               --no-create \\"
+    aeb-log "                               --version-label ${AEB_APP_VERSION_LABEL} \\"
+    aeb-log "                               --s3-bucket ${AEB_DEFAULT_S3_BUCKET} \\"
+    aeb-log "                               --s3-key ${AEB_ARTIFACT_BASE_NAME}/dont_care.zip \\"
+    aeb-log "                               --artifact-url http://www.some.com/dont_care.zip"
+
+    # ebt deploy-application-version --application-name ${AEB_ARTIFACT_BASE_NAME} \
+    #                                --environment-name ${AEB_ARTIFACT_BASE_NAME}-${AEB_DEPLOYMENT_ENV}-${latest_environment_label} \
+    #                                --no-create \
+    #                                --version-label ${AEB_APP_VERSION_LABEL} \
+    #                                --s3-bucket ${AEB_DEFAULT_S3_BUCKET} \
+    #                                --s3-key ${AEB_ARTIFACT_BASE_NAME}/dont_care.zip \
+    #                                --artifact-url http://www.some.com/dont_care.zip
+
+    echo "Command history in ${AEB_LOG_FILE}"
+
+  else
+
+    # Use straight EBT conventions
+
+    ebt-cp # Maintain artifact naming
+    
+    artifact_url="file://${AEB_TMPDIR}/${AEB_ARTIFACT_ZIP_NAME}"
+    echo "artifact_url ${artifact_url}"
+    
+    aeb-log "ebt deploy-application-version --application-name ${AEB_ARTIFACT_BASE_NAME} \\"
+    aeb-log "                               --environment-name ${AEB_ARTIFACT_BASE_NAME}-${AEB_DEPLOYMENT_ENV}-${latest_environment_label} \\"
+    aeb-log "                               --no-create \\"
+    aeb-log "                               --version-label ${AEB_APP_VERSION_LABEL} \\"
+    aeb-log "                               --s3-bucket ${AEB_DEFAULT_S3_BUCKET} \\"
+    aeb-log "                               --s3-key ${AEB_ARTIFACT_BASE_NAME}/${AEB_ARTIFACT_ZIP_NAME} \\"
+    aeb-log "                               --artifact-url ${artifact_url}"
+
+    # ebt deploy-application-version --application-name ${AEB_ARTIFACT_BASE_NAME} \
+    #                                --environment-name ${AEB_ARTIFACT_BASE_NAME}-${AEB_DEPLOYMENT_ENV}-${latest_environment_label} \
+    #                                --version-label ${AEB_APP_VERSION_LABEL} \
+    #                                --s3-bucket ${AEB_DEFAULT_S3_BUCKET} \
+    #                                --s3-key ${AEB_ARTIFACT_BASE_NAME}/${AEB_ARTIFACT_ZIP_NAME} \
+    #                                --artifact-url ${artifact_url}
+
+    # ebt deploy-application-version --application-name ${AEB_ARTIFACT_BASE_NAME} \
+    #                                --environment-name ${AEB_ARTIFACT_BASE_NAME}-${AEB_DEPLOYMENT_ENV}-${latest_environment_label} \
+    #                                --no-create \
+    #                                --version-label ${AEB_APP_VERSION_LABEL} \
+    #                                --s3-bucket ${AEB_DEFAULT_S3_BUCKET} \
+    #                                --s3-key ${AEB_ARTIFACT_BASE_NAME}/dont_care.zip \
+    #                                --artifact-url http://www.some.com/dont_care.zip
+
+    echo "Command history in ${AEB_LOG_FILE}"
+
+  fi
+                                 
+}
+# 
+# Crude AEB/SDP Automation ends
+#

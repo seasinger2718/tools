@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# $Id: idtvfreeze 92 2005-04-29 16:57:43Z tracy $
+
+idtv_svn_repo_path=file:///Users/tracy/AllFiles/SmartOWL/.svnrepository/Activities/IDTV/python
+idtv_freeze_dir=/Users/tracy/AllFiles/SmartOWL/Activities/Production/python
+
+if [ -d $idtv_freeze_dir ] ;
+then
+	rm -r -f $idtv_freeze_dir ;
+fi
+
+
+frozen_version=`svn export $svn_option $idtv_svn_repo_path $idtv_freeze_dir | tail -1 | awk '{print substr($3,1,length($3) -1) }'`
+
+# Update version file
+echo 'FAIRPRICE_VERSION = "Version' $frozen_version ' Frozen on ' `date` '"' >$idtv_freeze_dir/uk/co/idtv/fairprice/application/VersionText.py
+echo Froze version $frozen_version

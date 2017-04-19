@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Script to copy local source code backups to an external drive when that drive is mounted
+# Script is run by launchd whenever a file system is mounted.
+# It needs to run for at least 10 secs or else launchd will think it has failed and take appropriate action.
+
+# Wait a little for the drives and file systems to come ready
+sleep 5
+
+#See whether either of the backup drives have been mounted
+backupVolumeMounted=false
+if [[ -e /Volumes/Backup1 ]] ; then
+  backupVolumeMounted=true
+  backupDestination='/Volumes/Backup1'
+fi
+if [[ -e /Volumes/Backup2 ]] ; then
+  backupVolumeMounted=true
+  backupDestination='/Volumes/Backup2'
+fi
+
+if [[ ${backupVolumeMounted} == true ]] ; then
+  rsync -a ${HOME}/Backups/SourceCodeRepositories/ ${backupDestination}
+  echo "`date` Copied backups to external drive ${backupDestination}" >> ${HOME}/Backups/SourceCodeRepositories/backup.log
+  sleep 5
+  sudo /usr/sbin/diskutil unmount ${backupDestination}
+  #echo "Source code backups completed. Please dismount the backup drive" | sudo wall
+else
+  sleep 5
+fi
+

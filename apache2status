@@ -1,0 +1,16 @@
+#!/bin/sh
+
+APACHE="/Library/Apache2"
+
+APACHEPIDFILE="$APACHE/logs/httpd.pid"
+
+if [ -a $APACHEPIDFILE ]; then
+	APACHEPID=`cat $APACHEPIDFILE`
+	if [ "`ps -ax | grep $APACHEPID | grep -v grep | grep -c http`" = "1" ]; then
+		echo Apache running ...
+	else
+		echo Apache stopped ...
+	fi
+else
+	echo Apache stopped ...
+fi	

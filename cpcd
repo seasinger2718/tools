@@ -1,0 +1,10 @@
+#!/bin/tcsh
+
+set source = /Users/tracy/Projects/$1
+set target1 = /Users/tracy/CDCopy
+set target2 = "/Volumes/LON SW 20050329 - V2"
+
+cp -R $source "$target1"
+cp -R $source "$target2"
+
+

@@ -1,0 +1,15 @@
+#!/bin/tcsh
+
+if "X$1" == "X" then
+	echo \
+"\
+Usage: subfind <file name fragment>\
+\
+Recursively search active subversion repository from current directory downwards\
+for filenames that includes specified file name fragment\
+"
+	exit 1
+endif
+
+svn -R list | grep -i $1 | more
+

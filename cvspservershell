@@ -1,0 +1,2 @@
+#exec cvs  -f -\-allow-root=/usr/local/loncvsroot pserver
+echo hello

@@ -1,0 +1,18 @@
+#!/usr/bin/env ruby
+
+require 'base64'
+
+opt=nil
+if ARGV.size > 1
+  opt = ARGV[0]
+  ARGV.shift
+end
+
+val = ARGV[0]
+
+if opt == "--trim"
+  print Base64.decode64(val)
+else
+  puts Base64.decode64(val)
+end
+

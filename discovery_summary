@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+
+require 'json'
+file = File.read(ARGV[0])
+data_hash = JSON.parse(file)
+data_hash.each {|entry| puts "#{entry['keymaster_service_name']}:#{entry['name']}:#{entry['link']['href']}"}
+

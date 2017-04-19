@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+
+Dir.glob('public/page_cache/*').each do |cachefile|
+  if File.file?(cachefile)
+    `rm -rf public/page_cache/*`
+    break
+  end
+end

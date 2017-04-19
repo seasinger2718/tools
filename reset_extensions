@@ -1,0 +1,8 @@
+#!/usr/bin/env tcsh
+
+pushd /System/Library/Frameworks/CoreServices.framework/Versions/A/Frameworks/LaunchServices.framework/Versions/A/Support
+#sudo ./lsregister -kill -v -r -f -all system,local,user
+sudo ./lsregister -kill -v -r -f -domain local -domain system -domain user
+sudo killall Finder
+popd
+

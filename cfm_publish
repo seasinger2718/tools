@@ -1,0 +1,61 @@
+#!/usr/bin/env ruby 
+
+# Script to rsync a set of static HTML pages to a new publicly-accessible directory under ${DROPBOX_PUBLIC_URL}/cfm/[xxxxxx]
+dropbox_public_dir = '/Users/tracy/Dropbox/Public'
+dropbox_base_url = 'http://dl.dropbox.com/u/12189743'
+prefix = 'cfm'
+uuid = `uuid_random -u`.strip.chomp
+
+html_title = "Fuel Station Premium"
+
+starting_page = 'html/index.html'
+dropbox_full_url = %{#{dropbox_base_url}/#{prefix}/#{uuid}}
+dropbox_full_dir = %{#{dropbox_public_dir}/#{prefix}/#{uuid}}
+
+starthere_file_name = "starthere.html"
+starthere_full_url = %{#{dropbox_full_url}/#{starthere_file_name}}
+
+starthere_contents =<<STARTHERE_TEMPLATE
+<html>
+  <head>
+    <title>Start here</title>
+    <meta http-equiv="refresh" content="0;url=#{dropbox_full_url}/#{starting_page}">
+  </head>
+  <body>
+  </body>
+</html>
+STARTHERE_TEMPLATE
+
+Dir.mkdir(dropbox_full_dir)
+
+current_dir = Dir.pwd
+rsync_source_dir = %{#{current_dir}/}
+cmd = %{rsync -a  "#{rsync_source_dir}" "#{dropbox_full_dir}"} 
+#puts cmd
+puts `#{cmd}`
+
+File.open(File.join(dropbox_full_dir,'dropbox_url'),'w') do |file|
+  file.puts starthere_full_url
+end
+File.open(File.join(dropbox_full_dir,starthere_file_name),'w') do |file|
+  file.puts starthere_contents
+end
+
+#TODO Fix all HTML title elements
+Dir.chdir(dropbox_full_dir) do |dir|
+  Dir.glob('**/*.html') do |file|
+    full_file_name = File.join(dropbox_full_dir,file)
+    #puts full_file_name
+    html_file_original_contents = nil 
+    File.open(full_file_name) do |file|
+      html_file_original_contents = file.readlines
+    end
+    File.open(full_file_name,'w') do |file|
+      html_file_original_contents.each do |line|
+        file.puts line.sub(/<title>.*<\/title>/,%{<title>#{html_title}</title>})
+      end
+    end
+  end
+end
+puts "Site accessible at #{starthere_full_url}"
+

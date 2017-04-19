@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if [ "`ps -alxww | grep Library/Tomcat/common | grep Bootstrap | grep -c java`" = "1" ]; then
+	echo Production Tomcat running
+else
+	echo Production Tomcat stopped
+fi

@@ -1,0 +1,14 @@
+#!/bin/bash
+
+output_file_name=~/tmp/speed_out.txt
+
+rm -rf $output_file_name
+
+while [ 1 == 1 ]
+do
+  date +"%Y-%m-%dT%H:%M:%S%z" >>$output_file_name
+  curl -O http://speedtest.wdc01.softlayer.com/downloads/test10.zip > /dev/null 2>>$output_file_name
+  echo "" >>$output_file_name
+  sleep 300
+done
+

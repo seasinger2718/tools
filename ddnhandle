@@ -1,0 +1,1 @@
+java -classpath /Users/tracy/Everything/Activities/DDNHandle/bin/handle.jar net.handle.apps.gui.hadmin.HandleTool

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+for full_dot_dir in $(ls -1ad ~/.*)
+do
+    dot_dir=$(basename $full_dot_dir)
+    #echo $full_dot_dir
+    link=$(readlink $full_dot_dir)
+    if [ "${link}" == "" ]; then
+        echo "$dot_dir"
+    else
+        echo "$dot_dir -> ${link}"
+    fi
+    if [[ $dot_dir =~ save$  ]]; then
+        echo "saved " $dot_dir
+    fi
+done
+

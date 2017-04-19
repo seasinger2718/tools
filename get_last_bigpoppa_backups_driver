@@ -1,0 +1,6 @@
+#!/bin/bash
+
+myScriptDir=/Users/tflynn/Everything/Resources/Scripts
+
+${myScriptDir}/get_last_bigpoppa_backups &
+

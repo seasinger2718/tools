@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -x # DEBUG
+
+export WORKSPACE=/Users/tflynn/Everything/projects/conservice
+export Z_DEPLOYMENT_APPLICATION_NAME=idpro
+
+source ${WORKSPACE}/z/ci/environments/dev.env
+
+pushd ${WORKSPACE}
+
+./z/bin/manual_deploy_dev 
+
+popd

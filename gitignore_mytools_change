@@ -1,0 +1,52 @@
+#!/usr/bin/env ruby
+
+if ARGV.size != 1
+  puts "Usage gitignore_mytoos_change enable|disable"
+  exit 1
+end
+
+mytools_dir = "mytools"
+
+command = :unknown
+arg1 = ARGV[0]
+if arg1 =~ /enable/
+  command = :enable
+elsif arg1 =~ /disable/
+  command = :disable
+end
+
+if command == :unknown
+  puts "Usage gitignore_mytoos_change enable|disable"
+  exit 1
+end
+  
+original_file_name = "/Users/tflynn/.gitignore_global"
+backup_file_name = original_file_name + ".bak"
+`cp #{original_file_name} #{backup_file_name}`
+File.open(original_file_name,'w') do |output_file|
+  
+  File.open(backup_file_name) do |input_file|
+    input_file.readlines.each do |input_line_raw|
+      input_line = input_line_raw.chomp
+      if input_line.include? mytools_dir
+        output_line = input_line
+        if command == :enable
+          if input_line =~ /^#/
+            output_file.puts input_line.sub(/^#/,'')
+          else
+            output_file.puts input_line
+          end
+        elsif command == :disable
+          if input_line !~ /^#/
+            output_file.puts '#' + input_line
+          else
+            output_file.puts input_line
+          end
+        end
+      else
+        output_file.puts input_line
+      end
+  
+    end
+  end
+end

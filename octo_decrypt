@@ -1,0 +1,34 @@
+#!/usr/local/env ruby
+
+require 'base64'
+require 'octocrypt'
+require 'openssl'
+
+#keys = [OpenSSL::Random.random_bytes(256), OpenSSL::Random.random_bytes(256)]
+keys = [OpenSSL::Random.random_bytes(256)]
+
+data = "All good things come to an end"
+
+Octocrypt.configure(
+     Octocrypt::Constants::MASTER_KEY_HMAC_PHASE, # Octocrypt::Constants::NO_ENCRYPTION_PHASE
+     'AES-256-CFB',
+     keys )
+
+result = Octocrypt.encrypt(data) 
+puts result.inspect
+
+
+# scheme = 'AES-256-CFB'
+# encoded_key = "9UlVRNAP4d2v46Lm6q8X7D0QD3TppcWulN9FO7a4CRf1P+vDL9ne4DTUofbfAKYY7s45TwrW1EG+2naUl31g2DXyDHLEqmXK5fNq6v0fLn+ZXxfQK76JbSlR8dCageXcHQRcYleG/faFIOrExDc+byyhXJudTKw2F8soxorX6i4o0aKoNZqDH5eWK2riebmWAgFU9cypLf1hlb4i2sfvpo9ahe8fQzGo4Ysq2wdEtMHERQKK8HweOLj8dAZvZP1X++3WLjgK6cTSBqOtvsT3dfJfGyO8/BR66PHQzYHXKYysV77qoQZVtCFeE5RojYqr53j1OsBpxy01zjB9mM0u/Q=="
+#
+# decoded_key = Base64.decode64(encoded_key)
+#
+# Octocrypt.configure(
+#     Octocrypt::Constants::MASTER_KEY_HMAC_PHASE, # Octocrypt::Constants::NO_ENCRYPTION_PHASE
+#     'AES-256-CFB',
+#     [decoded_key] }
+# )
+#
+# @encrypt = Octocrypt::Encryptor.new
+# @decrypt = Octocrypt::Decryptor.new(scheme)
+# @decrypt.update decoded_key

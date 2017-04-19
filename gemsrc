@@ -1,0 +1,44 @@
+#!/usr/bin/env ruby
+
+if RUBY_VERSION < '1.9'
+  puts "Command not supported before Ruby 1.9.x"
+  exit 1
+end
+
+if ARGV.size == 1
+  gem_name_prefix = ARGV[0].downcase
+  gems_base = %{#{RbConfig::CONFIG['rubylibprefix']}/gems/#{RbConfig::CONFIG['ruby_version']}}
+  gem_sources = %{#{gems_base}/gems}
+  matching_gems = []
+  Dir.chdir(gem_sources) do |dir|
+    Dir.glob('*').each do |dir_entry|
+      if File.directory?(dir_entry)
+        if dir_entry.start_with?(gem_name_prefix)
+          matching_gems << dir_entry
+        end
+      end
+    end
+  end
+  if matching_gems.size == 1
+    matching_gem = matching_gems.shift
+    full_gem_dir = File.expand_path(File.join(gem_sources,matching_gem))
+    #puts "${X_EDITOR} #{full_gem_dir}"
+    exec "${X_EDITOR} #{full_gem_dir}"
+  else
+    current_entry = 0 
+    matching_gems.each do |gem_dir| 
+      current_entry += 1
+      puts "#{current_entry}. #{gem_dir}"
+    end
+    print "Select version "
+    entry_num = STDIN.gets.strip.chomp
+    if entry_num and entry_num != ''
+      entry_num = entry_num.to_i - 1
+      matching_gem = matching_gems[entry_num]
+      full_gem_dir = File.expand_path(File.join(gem_sources,matching_gem))
+      #puts "${X_EDITOR} #{full_gem_dir}"
+      exec "${X_EDITOR} #{full_gem_dir}"
+    end
+  end
+end
+

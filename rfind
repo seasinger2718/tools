@@ -1,0 +1,29 @@
+#!/usr/bin/ruby
+
+STANDARD_EXCLUDE_PATTERNS = ['.svn',  '.jpg' , '.gif']
+STANDARD_EXCLUDE_REGEXES = STANDARD_EXCLUDE_PATTERNS.collect {|pattern| Regexp.new(Regexp.escape(pattern)) }
+
+STANDARD_EXCLUDE_TYPES = [:dir] 
+
+Dir.glob('**/*').each do |entry|
+
+  entry = "./#{entry}"
+  
+  exclude = false
+  STANDARD_EXCLUDE_REGEXES.each do |regex| 
+    if regex =~ entry
+      exclude = true
+      break
+    end
+  end
+  STANDARD_EXCLUDE_TYPES.each do |exclude_type|
+    if exclude_type == :dir
+      if File.directory?(entry)
+        exclude = true
+        break
+      end
+    end
+  end
+  puts entry unless exclude
+  
+end

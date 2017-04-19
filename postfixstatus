@@ -1,0 +1,9 @@
+#!/bin/sh
+
+pfstat=`ps -alxww | grep postfix/master | grep -v grep | grep -c postfix`
+#echo pfstat $pfstat
+if test "$pfstat" = "1" ; then
+	echo Postfix running
+else
+	echo Postfix stopped
+fi

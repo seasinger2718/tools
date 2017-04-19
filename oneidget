@@ -1,0 +1,4 @@
+#!/bin/tcsh
+
+# Get a OneID file from svn
+svn co file:///Users/tracy/Projects/svnrepository/Docs/OneID/trunk/$1

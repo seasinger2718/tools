@@ -1,0 +1,963 @@
+#!/usr/bin/env ruby
+
+# Copyright (c) 2009-2013 Tracy Flynn - All rights reserved
+# May be distributed under the same terms as Ruby
+
+require 'fileutils'
+
+
+#####
+# Edit defaults starting here
+#####
+
+DEFAULT_GROUP_ID='com.verymuchme.xtend'
+DEFAULT_ARTIFACT_VERSION='1.0'
+
+author_name = `echo $LOGNAME`.strip.chomp
+cmd_result = `which git`
+cmd_status = $?
+if cmd_status == 0
+  author_name=`git config --get user.name`.strip.chomp
+end  
+SOURCE_CODE_AUTHOR=author_name
+
+# POM DEPENDENCY VERSIONS
+POM_DEPENDENCY_JAVA_VERSION='1.7'
+POM_DEPENDENCY_JUNIT_VERSION='4.10'
+POM_DEPENDENCY_MOCKITO_ALL_VERSION='1.9.5'
+POM_DEPENDENCY_XTEND_VERSION='2.4.1'
+POM_DEPENDENCY_JRARIO_EVERSION="0.4.2"
+
+
+
+
+
+DEFAULT_SOURCE_CODE_COPYRIGHT_MESSAGE=<<DEFAULT_SOURCE_CODE_COPYRIGHT_MESSAGE_TEMPLATE
+/* 
+ * Copyright 2009-2013 Tracy Flynn
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+DEFAULT_SOURCE_CODE_COPYRIGHT_MESSAGE_TEMPLATE
+
+#####
+# End editing defaults - Do not edit below this point
+#####
+
+
+# For testing use only
+# NO_BANNER default is false
+NO_BANNER=false
+# FORCE_EXECUTABLE_TYPE should be commented out by default
+# FORCE_EXECUTABLE_TYPE=:war
+# FORCE_DEBUG should be commented out by default
+# FORCE_DEBUG=false
+# For testing use only ends
+
+if __FILE__ =~ /xejar/
+  executable_type = :jar
+  executable_name = 'xejar'
+end
+
+EXECUTABLE_TYPE=executable_type
+EXECUTABLE_NAME=executable_name
+
+
+DESCRIPTION_TEXT=<<DESCRIPTION_TEXT_TEMPLATE
+Overview
+--------
+
+[EXECUTABLE_NAME] is a script that will create a skeleton for a single [PROJECT_DESCRIPTION].
+
+It uses the same concepts as a Maven archetype - groupID, artifactID and so on.
+
+In addition to the effective results of 'mvn archetype:generate' for a suitable archetype,
+the script will add:
+
+- Sample code sufficient to create a runnable application
+
+To run
+------
+
+./#{EXECUTABLE_NAME}
+
+and respond to the prompts or accept the defaults offered.
+
+Options:
+
+-q         quiet mode - Disable this message
+--runit    Automically run the artifact after creating it
+
+Testing the result
+-----------------
+
+Example is for groupId 'com.example', artifact 'sampleproduct' and package  'com.example.sampleproduct'
+
+[RUN_INSTRUCTIONS]
+
+DESCRIPTION_TEXT_TEMPLATE
+
+
+EEJAR_TITLE=EXECUTABLE_NAME
+EEJAR_VERSION_MAJOR=4
+EEJAR_VERSION_MINOR=0
+EEJAR_VERSION="#{EEJAR_VERSION_MAJOR}.#{EEJAR_VERSION_MINOR}"
+EEJAR_AUTHOR='Tracy Flynn'
+EEJAR_VERSION_DATE='2013-05-31'
+EEJAR_COPYRIGHT='Copyright (c) 2009-2013 Tracy Flynn - All rights reserved'
+EEJAR_DISTRIBUTION='May be distributed under the same terms as Ruby'
+
+BANNER=<<BANNER_TEMPLATE
+
+Title: #{EEJAR_TITLE} 
+Version: #{EEJAR_VERSION} 
+Author: #{EEJAR_AUTHOR}
+
+#{EEJAR_COPYRIGHT}
+#{EEJAR_DISTRIBUTION}
+
+#{DESCRIPTION_TEXT}
+BANNER_TEMPLATE
+
+DEFAULT_PROJECT_DIRECTORIES = %w{
+  /bin
+  /docs
+  /docs/javadocs
+  /logs
+  /src
+  /src/main
+  /src/main/java
+  /src/main/resources
+  /src/test
+  /src/test/java
+  /src/test/resources
+}
+
+PACKAGE_SPECIFIC_DIRECTORIES = %w{
+  /src/main/java/[PACKAGE]
+  /src/main/resources/[PACKAGE]
+  /src/main/xtend-gen/[PACKAGE]
+  /src/test/java/[PACKAGE]
+  /src/test/resources/[PACKAGE]
+  /src/test/xtend-gen/[PACKAGE]
+}
+
+STANDARD_GIT_IGNORE_CONTENTS=<<STANDARD_GIT_IGNORE_TEMPLATE
+.DS_Store
+logs
+logs/*
+target
+target/*
+.idea/workspace.xml
+.idea/tasks.xml
+projectFilesBackup*
+projectFilesBackup*/*
+STANDARD_GIT_IGNORE_TEMPLATE
+
+JAR_GIT_IGNORE_CONTENTS=<<JAR_GIT_IGNORE_TEMPLATE
+Sample.java
+SampleTest.java
+JAR_GIT_IGNORE_TEMPLATE
+
+POM_CONTENTS_JAR=<<POM_TEMPLATE_JAR
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>[PACKAGE]</groupId>
+    <artifactId>[ARTIFACT_ID]</artifactId>
+    <version>[ARTIFACT_VERSION]</version>
+    <packaging>[POM_PACKAGING]</packaging>
+
+    <name>[ARTIFACT_ID]</name>
+    <url>http://maven.apache.org</url>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.0</version>
+                <configuration>
+                    <source>#{POM_DEPENDENCY_JAVA_VERSION}</source>
+                    <target>#{POM_DEPENDENCY_JAVA_VERSION}</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-my-jar-with-dependencies</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+              <groupId>org.eclipse.xtend</groupId>
+              <artifactId>xtend-maven-plugin</artifactId>
+              <version>2.3.0</version>
+              <executions>
+                <execution>
+                  <goals>
+                    <goal>compile</goal>
+                    <goal>testCompile</goal>
+                  </goals>
+                  <configuration>
+                    <outputDirectory>src/main/xtend-gen</outputDirectory>
+                    <testOutputDirectory>src/test/xtend-gen</testOutputDirectory>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+<!--            
+            <plugin>
+              <groupId>org.codehaus.mojo</groupId>
+              <artifactId>build-helper-maven-plugin</artifactId>
+              <version>1.8</version>
+              <executions>
+                <execution>
+                  <id>add-source</id>
+                  <phase>generate-sources</phase>
+                  <goals>
+                    <goal>add-source</goal>
+                  </goals>
+                  <configuration>
+                    <sources>
+                      <source>src/main/xtend-gen</source>
+                    </sources>
+                  </configuration>
+                </execution>
+                <execution>
+                  <id>add-test-source</id>
+                  <phase>generate-test-sources</phase>
+                  <goals>
+                    <goal>add-test-source</goal>
+                  </goals>
+                  <configuration>
+                    <sources>
+                      <source>src/test/xtend-gen</source>
+                    </sources>
+                  </configuration>
+                </execution>
+              </executions>
+            </plugin>
+-->
+            <plugin>
+              <artifactId>maven-clean-plugin</artifactId>
+              <version>2.4.1</version>
+              <configuration>
+                <filesets>
+                  <fileset>
+                    <directory>src/main/xtend-gen</directory>
+                    <includes>
+                      <include>**</include>
+                    </includes>
+                  </fileset>
+                  <fileset>
+                    <directory>src/test/xtend-gen</directory>
+                    <includes>
+                      <include>**</include>
+                    </includes>
+                  </fileset>
+                </filesets>
+              </configuration>
+            </plugin>
+            
+            <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-surefire-plugin</artifactId>
+              <version>2.12</version>
+              <configuration>
+                <includes>
+                  <include>**/*Spec*.java</include>
+                  <include>**/*Feature.java</include>
+                  <include>**/*Test.java</include>
+                  <include>**/*TestCase.java</include>
+                </includes>
+              </configuration>
+            </plugin>
+
+            <plugin>
+              <groupId>org.jnario</groupId>
+              <artifactId>jnario-maven-plugin</artifactId>
+              <version>0.4.2</version>
+              <executions>
+                <execution>
+                  <goals>
+                    <goal>testCompile</goal>
+                    <goal>xtend-test-install-debug-info</goal>
+                  </goals>
+                </execution>
+              </executions>
+            </plugin>
+            
+        </plugins>
+    </build>
+
+    <pluginRepositories>
+      <pluginRepository>
+        <id>xtend</id>
+        <url>http://build.eclipse.org/common/xtend/maven/</url>
+      </pluginRepository>
+    </pluginRepositories>
+
+
+    <repositories>
+        <repository>
+          <id>mvn-repo-releases</id>
+          <url>https://github.com/tflynn/mvn-repo-public/raw/master/releases</url>
+        </repository>
+
+        <repository>
+          <id>mvn-repo-snapshots</id>
+          <url>https://github.com/tflynn/mvn-repo-public/raw/master/snapshots</url>
+        </repository>
+    
+        <repository>
+            <id>maven2-repository.dev.java.net</id>
+            <name>Java.net Repository for Maven</name>
+            <url>http://download.java.net/maven/2/</url>
+            <!--<layout>default</layout>-->
+        </repository>
+        <repository>
+            <id>Glassfish-maven2-repository.dev.java.net</id>
+            <name>JGlassfish ava.net Repository for Maven</name>
+            <url>http://download.java.net/maven/glassfish/</url>
+            <!--<layout>default</layout>-->
+        </repository>
+        <repository>
+          <id>java.net</id>
+          <url>http://download.java.net/maven/1</url>
+          <!-- <layout>legacy</layout> -->
+        </repository>
+        
+        <repository>
+          <id>xtend</id>
+          <url>http://build.eclipse.org/common/xtend/maven/</url>
+        </repository>
+        
+    </repositories>
+
+    <dependencies>
+
+       <!--  Testing -->
+       <dependency>
+         <groupId>junit</groupId>
+         <artifactId>junit</artifactId>
+         <version>#{POM_DEPENDENCY_JUNIT_VERSION}</version>
+         <scope>test</scope>
+       </dependency>
+
+       <dependency>
+         <groupId>org.mockito</groupId>
+         <artifactId>mockito-all</artifactId>
+         <version>#{POM_DEPENDENCY_MOCKITO_ALL_VERSION}</version>
+         <scope>test</scope>
+       </dependency>    
+
+      <dependency>
+        <groupId>org.eclipse.xtend</groupId>
+        <artifactId>org.eclipse.xtend.lib</artifactId>
+        <version>#{POM_DEPENDENCY_XTEND_VERSION}</version>
+      </dependency>
+      
+      <dependency>
+        <groupId>org.jnario</groupId>
+        <artifactId>org.jnario.lib.maven</artifactId>
+        <version>#{POM_DEPENDENCY_JRARIO_EVERSION}</version>
+        <scope>test</scope>
+      </dependency>
+
+      <dependency>
+        <groupId>org.jnario</groupId>
+        <artifactId>org.jnario.standalone.maven</artifactId>
+        <version>#{POM_DEPENDENCY_JRARIO_EVERSION}</version>
+      </dependency>
+      
+    </dependencies>
+</project>
+POM_TEMPLATE_JAR
+
+SAMPLE_XTEND_CONTENTS=<<SAMPLE_XTEND_TEMPLATE
+[COPYRIGHT_MESSAGE]
+package [PACKAGE];
+
+/**
+ * A brief description of what this class does
+ *
+ * @author #{SOURCE_CODE_AUTHOR}
+ * @version [ARTIFACT_VERSION]
+ * @since [ARTIFACT_VERSION]
+ */
+class Sample {
+  
+	def static void main(String[] args) {
+		println("Hello World") 
+	}
+  
+} 
+SAMPLE_XTEND_TEMPLATE
+
+
+
+SAMPLE_JAVA_CONTENTS=<<SAMPLE_JAVA_TEMPLATE
+[COPYRIGHT_MESSAGE]
+package [PACKAGE];
+
+import java.util.HashMap;
+
+import ch.qos.logback.classic.LogbackFactory;
+import ch.qos.logback.classic.Logger;
+
+/**
+ * A brief description of what this class does
+ *
+ * @author #{SOURCE_CODE_AUTHOR}
+ * @version [ARTIFACT_VERSION]
+ * @since [ARTIFACT_VERSION]
+ */
+public class Sample {
+
+    /**
+     * Logger instance
+     */
+	  private static final Logger logger = LogbackFactory.getLogger(Sample.class);
+
+    /**
+     * A brief description of what this method does
+     *
+     * @param args An array of command-line arguments
+     *
+     */
+    public static void main( String[] args ) {
+      
+      try {
+        logger.debug("Application started");
+      }
+      catch (Exception e) {
+        // In the case of configuration, pretty much any error is fatal. So, log it and go away
+        String errorMsg = "Sample failed with unexpected error";
+        System.out.println(errorMsg);
+        System.out.println(e.getMessage());
+        e.printStackTrace(System.out);
+      }
+    }
+      
+      
+}
+
+SAMPLE_JAVA_TEMPLATE
+
+SAMPLE_MOCKITO_TEST_CONTENTS=<<SAMPLE_MOCKITO_TEST_CONTENTS_TEMPLATE
+[COPYRIGHT_MESSAGE]
+package [PACKAGE];
+
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.util.Iterator;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.runners.MockitoJUnitRunner;
+
+
+@RunWith(MockitoJUnitRunner.class)
+public class MockitoSampleTest {
+
+  @Test
+  public void iterator_will_return_hello_world(){
+    //arrange
+    Iterator i=mock(Iterator.class);
+    when(i.next()).thenReturn("Hello").thenReturn("World");
+    //act
+    String result=i.next()+" "+i.next();
+    //assert
+    assertEquals("Hello World", result);
+  }
+
+}
+
+SAMPLE_MOCKITO_TEST_CONTENTS_TEMPLATE
+
+SAMPLE_JNARIO_FEATURE_TEST_CONTENTS=<<SAMPLE_JNARIO_FEATURE_TEST_CONTENTS_TEMPLATE
+
+package [PACKAGE]
+
+import java.util.ArrayList
+
+Feature: ListAdd
+
+  As a programming neophyte
+  I want to understand how add items to a  list
+  In order to better understand how lists work
+  
+   Scenario: Adding an element to a list
+
+	val list = new ArrayList<String>();
+	val expectedListSize = 3
+	
+    Given a list
+    	list.add("element1")
+    	list.add("element2")
+    When I add an element to a list
+    	list.add('element3')
+    Then the list should have "3" elements
+    	expectedListSize => list.size()
+ 
+
+SAMPLE_JNARIO_FEATURE_TEST_CONTENTS_TEMPLATE
+
+SAMPLE_JAVA_TEST_CONTENTS=<<SAMPLE_JAVA_TEST_TEMPLATE
+[COPYRIGHT_MESSAGE]
+package [PACKAGE];
+
+import org.junit.Test;
+import static org.junit.Assert.*;
+import org.junit.runner.RunWith;
+
+import static org.mockito.Mockito.*;
+
+import ch.qos.logback.classic.LogbackFactory;
+import ch.qos.logback.classic.Logger;
+
+
+/**
+ * A brief description of what this class does
+ *
+ * @author #{SOURCE_CODE_AUTHOR}
+ * @version [ARTIFACT_VERSION]
+ * @since [ARTIFACT_VERSION]
+ */
+ 
+ // @RunWith(MockitoJUnitRunner.class)
+public class SampleTest {
+
+  /**
+   * Logger instance
+   */
+  private static final Logger logger = LogbackFactory.getLogger(SampleTest.class);
+
+  @Test
+  public void testSomething() {
+    List mockedList = mock(List.class);
+    mockedList.add("one");
+    mockedList.clear();
+    
+    verify(mockedList).add("one");
+    verify(mockedList).clear();
+  }
+
+}
+
+SAMPLE_JAVA_TEST_TEMPLATE
+
+JAR_RUN_INSTRUCTIONS=<<JAR_RUN_INSTRUCTIONS_TEMPLATE
+Then issue the commands:
+
+cd [artifact_dir]
+./bin/runit
+
+where 'artifact_dir' is the directory containing the artifact you've just created.
+JAR_RUN_INSTRUCTIONS_TEMPLATE
+
+README_CONTENTS=<<README_CONTENTS_TEMPLATE
+Sample XTend Maven-based project
+================================
+
+This is a sample XTend Maven-based project.
+
+XTend - http://www.eclipse.org/xtend
+
+Testing
+-------
+
+This project provides support for Jnario and Mockito for testing.
+
+Jnario - http://jnario.org/
+
+Mockito - https://code.google.com/p/mockito/
+
+Both testing frameworks run tests under JUnit.
+
+JUnit - http://junit.org/
+
+Eclipse
+-------
+
+Import the project into Eclipse using:
+
+File > Import > Maven > Existing Maven Projects > [Next] > [Browse] > [Finish]
+
+See ./docs/README.eclipse for information on configuring Eclipse for XTend and Jnario support, and other Eclipse issues..
+
+README_CONTENTS_TEMPLATE
+
+README_ECLIPSE_CONTENTS=<<README_ECLIPSE_CONTENTS_TEMPLATE
+Eclipse Notes
+=============
+
+
+Eclipse Maven Support
+---------------------
+
+Eclipse Juno comes with integrated Maven support via m2e. 
+
+Install m2e from the following Eclipse update site if necessary
+
+http://download.eclipse.org/technology/m2e/releases
+
+
+Eclipse Maven POM editor errors
+-------------------------------
+
+In the Eclipse Maven POM editor, errors indicated in the build-helper-maven-plugin build cycle are corrected by installing 
+
+m2e build-helper connector 
+
+Preferences > Maven > Discovery > Open Catalog > [Build helper]
+
+
+Eclipse XTend Support
+---------------------
+
+To install comprehensive Eclipse support for XTend go to the update site:
+
+http://download.eclipse.org/modeling/tmf/xtext/updates/composite/releases/
+
+and select latest 'Xtend-2.y.z' ('Xtend-2.4.1' at time of writing)
+
+See http://www.eclipse.org/xtend/download.html for more information
+
+
+Eclipse Jnario Support
+-----------------------
+
+To install comprehensive Eclipse support for Jnario go to the update site:
+
+http://www.jnario.org/updates/releases/
+
+and select 'Jnario'
+
+Note that the Maven dependencies included allow Jnario tests to run under standalone Maven. 
+However, for some reason, Eclipse does not recognize the Maven dependencies. The first time a feature, scenario or suite is written,
+Eclipse will mark the test in error. Follow its suggestion to add the required libraries to the (Eclipse project) classpath. 
+
+See http://jnario.org/org/jnario/jnario/documentation/InstallingJnarioSpec.html for more information.
+
+
+README_ECLIPSE_CONTENTS_TEMPLATE
+
+LICENSE_CONTENTS=<<LICENSE_CONTENTS_TEMPLATE
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+LICENSE_CONTENTS_TEMPLATE
+
+EXECUTABLE_TYPE_INFO = {
+  :jar => {:project_description => 'JAR-based Maven Project',
+           :run_instructions => JAR_RUN_INSTRUCTIONS,
+           :default_directories => DEFAULT_PROJECT_DIRECTORIES,
+           :project_specific_directories => nil,
+           :package_specific_directories => PACKAGE_SPECIFIC_DIRECTORIES,
+           :additional_git_ignore_files => JAR_GIT_IGNORE_CONTENTS,
+           :pom_packaging => 'jar',
+           :pom => POM_CONTENTS_JAR,
+           :pom_build_name => nil}
+}
+
+class EEJar
+  
+  class << self
+    
+    def run
+      eejar = EEJar.new
+      eejar.run
+    end
+    
+  end
+  
+  def initialize
+    @debug = false
+    @debug = FORCE_DEBUG if defined?(FORCE_DEBUG)
+    
+    @starting_dir = Dir.getwd
+    if @debug
+      @starting_dir = File.join(@starting_dir,'debug')
+    end
+    @executable_type = EXECUTABLE_TYPE
+    @executable_info = EXECUTABLE_TYPE_INFO[@executable_type]
+  end
+  
+  def debug(msg)
+    if @debug
+      puts msg
+    end
+  end
+  
+  def run
+    display_banner
+    get_user_input
+    create_directory_structure
+    create_project_files
+    create_git_repository
+    run_artifact
+  end
+  
+  def display_banner
+    quiet_mode = ARGV.detect{|arg| arg =~ /-q/}
+    if quiet_mode.nil? and (not NO_BANNER)
+      banner = BANNER.gsub(/\[EXECUTABLE_NAME\]/,EXECUTABLE_NAME)
+      project_description = @executable_info[:project_description]
+      banner = banner.gsub(/\[PROJECT_DESCRIPTION\]/,project_description)
+      run_instructions = @executable_info[:run_instructions]
+      banner = banner.gsub(/\[RUN_INSTRUCTIONS\]/,run_instructions)
+      puts banner
+    end
+  end
+  
+  def get_user_input
+    @group_id = get_input_line("Enter group id (#{DEFAULT_GROUP_ID})", true).strip.chomp
+    @group_id = DEFAULT_GROUP_ID if @group_id == ""
+    @artifact_id = get_input_line("Enter artifact ID")
+    @artifact_version = get_input_line("Enter version (#{DEFAULT_ARTIFACT_VERSION})", true).strip.chomp
+    @artifact_version = DEFAULT_ARTIFACT_VERSION if @artifact_version == ''
+    default_package = "#{@group_id}.#{@artifact_id}"
+    @package = get_input_line("Enter package (#{default_package})", true).strip.chomp
+    @package = default_package if @package == ""
+  end
+  
+  def get_input_line(prompt, allow_empty = false)
+    input_line = nil
+    while (input_line.nil? || input_line == '') 
+      STDOUT.print "#{prompt} : "
+      input_line = STDIN.gets
+      unless allow_empty
+        input_line = input_line.strip.chomp
+      end
+    end
+    return input_line
+  end
+
+  def create_directory_structure
+    # Clean out existing directory
+    delete_tree_with_prompt(File.join(@starting_dir,@artifact_id))
+    # Create standard directories
+    default_directories = @executable_info[:default_directories]
+    default_directories.each do |relative_directory|
+      qualified_directory = File.join(@starting_dir,@artifact_id,relative_directory)
+      debug("About to create " + qualified_directory)
+      FileUtils.mkdir_p(qualified_directory)
+    end
+    project_specific_directories = @executable_info[:project_specific_directories]
+    if project_specific_directories
+      project_specific_directories.each do |relative_directory|
+        qualified_directory = File.join(@starting_dir,@artifact_id,relative_directory)
+        debug("About to create " + qualified_directory)
+        FileUtils.mkdir_p(qualified_directory)
+      end
+    end
+    package_specific_directories = @executable_info[:package_specific_directories]
+    if package_specific_directories
+      # Create package-specific directories
+      package_specific_directories.each do |partial_package_directory|
+        package_dir = @package.gsub(/\./,'/')
+        qualified_directory = File.join(@starting_dir,@artifact_id,partial_package_directory.sub(/\[PACKAGE\]/,package_dir))
+        debug("About to create " + qualified_directory)
+        FileUtils.mkdir_p(qualified_directory)
+      end
+    end
+    
+  end
+  
+  def delete_tree_with_prompt(root_dir)
+    if File.exists?(root_dir)
+      qualified_path = File.expand_path(root_dir)
+      yes_no = get_input_line("Warning: About to delete #{qualified_path}. [Y/N]")
+      if yes_no.downcase =~ /^y/
+        puts "Deleting #{qualified_path}"
+        FileUtils.rm_rf(qualified_path)
+      end
+    end
+  end
+  
+  def create_project_files
+    create_gitignore
+    create_pom
+    create_placeholder_files
+    #create_configuration_files
+    create_sample_files
+    create_run_files
+  end
+  
+  def create_gitignore
+    git_ignore_file_name = File.join(@starting_dir,@artifact_id,".gitignore")
+    debug("Creating #{git_ignore_file_name}")
+    File.open(git_ignore_file_name,'w') do |git_ignore_file|
+      git_ignore_file.puts STANDARD_GIT_IGNORE_CONTENTS
+      additional_git_ignore_files = @executable_info[:additional_git_ignore_files]
+      if additional_git_ignore_files
+        git_ignore_file.puts additional_git_ignore_files  
+      end
+    end
+  end
+  
+  def create_pom
+    options = {}
+    options[:pom_packaging] = @executable_info[:pom_packaging]
+    options[:pom_build_name] = @executable_info[:pom_build_name]
+    options[:use_package_dir] = false
+    contents = @executable_info[:pom]
+    create_sample_file(contents, nil , "pom.xml",options )
+  end
+  
+  def create_placeholder_files
+    # docs_placeholder_file_name = File.join(@starting_dir,@artifact_id,'docs','README')
+    # FileUtils.touch(docs_placeholder_file_name)
+
+        
+
+    file_name = File.join(@starting_dir,@artifact_id, 'README')
+    File.open(file_name,'w') do |file|
+      file.puts README_CONTENTS
+    end
+    
+    file_name = File.join(@starting_dir,@artifact_id,'docs','README.eclipse')
+    File.open(file_name,'w') do |file|
+      file.puts README_ECLIPSE_CONTENTS
+    end
+    
+    file_name = File.join(@starting_dir,@artifact_id,'docs','LICENSE')
+    File.open(file_name,'w') do |file|
+      file.puts LICENSE_CONTENTS
+    end
+    
+    javadocs_placeholder_file_name = File.join(@starting_dir,@artifact_id,'docs/javadocs','index.html')
+    FileUtils.touch(javadocs_placeholder_file_name)
+  end
+  
+  def create_sample_files
+    if @executable_type == :jar
+      create_sample_xtend_file
+      #create_sample_java_file
+      #create_sample_java_test_file
+      create_sample_mockito_test_file
+      create_sample_jnario_test_file
+    end
+  end
+  
+  def create_sample_java_file
+    contents = SAMPLE_JAVA_CONTENTS
+    create_sample_file(contents,'/src/main/java','Sample.java')
+  end
+
+  def create_sample_xtend_file
+    contents = SAMPLE_XTEND_CONTENTS
+    create_sample_file(contents,'/src/main/java','Sample.xtend')
+  end
+
+  def create_sample_java_test_file
+    contents = SAMPLE_JAVA_TEST_CONTENTS
+    create_sample_file(contents,'/src/test/java','SampleTest.java')
+  end
+  
+  def create_sample_mockito_test_file
+    contents = SAMPLE_MOCKITO_TEST_CONTENTS
+    create_sample_file(contents,'/src/test/java','MockitoSampleTest.java')
+  end
+
+  def create_sample_jnario_test_file
+    contents = SAMPLE_JNARIO_FEATURE_TEST_CONTENTS
+    create_sample_file(contents,'/src/test/java','JnarioListAddFeature.feature')
+  end
+  
+  def create_sample_file(contents,relative_fragment_base = nil , file_name = nil, options = {})
+    template = String.new(contents)
+    options = {:use_package_dir => true}.merge(options)
+    if options[:pom_packaging]
+      template = template.gsub(/\[POM_PACKAGING\]/,options[:pom_packaging])
+    end
+    if options[:pom_build_name]
+      template = template.gsub(/\[WAR_FINAL_NAME\]/,options[:pom_build_name] )
+    end
+    template = template.gsub(/\[COPYRIGHT_MESSAGE\]/,DEFAULT_SOURCE_CODE_COPYRIGHT_MESSAGE)
+    template = template.gsub(/\[PACKAGE\]/,@package)
+    template = template.gsub(/\[ARTIFACT_ID\]/,@artifact_id)
+    template = template.gsub(/\[ARTIFACT_VERSION\]/,@artifact_version)
+    package_dir = @package.gsub(/\./,'/')
+    file_name = File.join(@starting_dir,@artifact_id,relative_fragment_base || '', options[:use_package_dir] ? package_dir : '',file_name)
+    debug("Creating #{file_name}")
+    File.open(file_name,'w') do |file|
+      file.puts template
+    end
+  end
+  
+  def create_run_files
+    #java -cp ./target/sampleproduct-1.0-jar-with-dependencies.jar  com.example.sampleproduct.Sample
+    run_file_name = File.join(@starting_dir,@artifact_id,'bin','runit')
+    File.open(run_file_name,'w') do |file|
+      if @executable_type == :jar
+        file.puts "#!/usr/bin/env bash"
+        cmd = %{\nmvn package >/dev/null\njava -cp ./target/#{@artifact_id}-#{@artifact_version}-jar-with-dependencies.jar  #{@package}.Sample}
+      end
+      file.puts cmd
+    end
+    File.chmod(0755,run_file_name)
+  end
+  
+  def create_git_repository
+    Dir.chdir( File.join(@starting_dir,@artifact_id)) do |dir|
+      `git init`
+      `git add .`
+      `git commit -a -m "Initial import"`
+    end
+  end
+  
+  def run_artifact
+    runit = ARGV.detect{|arg| arg =~ /--runit/}
+    if runit
+      if @executable_type == :jar
+        puts "\n\n"
+      end
+      Dir.chdir( File.join(@starting_dir,@artifact_id))
+      Kernel.exec('./bin/runit')
+    end
+  end
+end
+
+if $0 == __FILE__
+
+  EEJar.run
+  
+end

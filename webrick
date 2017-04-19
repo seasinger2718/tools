@@ -1,0 +1,76 @@
+#!/bin/bash
+#
+# webrick - Run a webrick server
+#
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# Source networking configuration.
+. /etc/sysconfig/network
+
+app_name=$2
+basedir="/home/tracy/activities/$app_name"
+rundir="/var/run/webrick"
+pidfile="$rundir/webrick_$app_name.pid"
+
+debug_msg(){
+
+#      echo "webrick" `date` "$1" >>/tmp/webrick_tmp.tmp
+
+	a=1
+}
+
+debug_msg "Called as $0"
+
+start(){
+  debug_msg "Start called"
+  if [ !  -f $pidfile ]; then
+    debug_msg "Start: Changing to $basedir"
+    pushd $basedir >/dev/null 2>&1
+#    /usr/local/bin/ruby script/server >/tmp/webrick_$app_name.log 2>&1 &
+    /usr/local/bin/ruby script/server >/dev/null  2>&1 &
+    echo $! >$pidfile
+    popd >/dev/null 2>&1
+    action $"Starting $app_name" /bin/true
+  else
+    action $"Starting $app_name" /bin/false
+  fi
+}
+
+stop(){
+  debug_msg "Stop called"
+  if [ -f $pidfile ] ; then
+    pid=`cat $pidfile`
+    kill -9 $pid
+    action $"Stopping $app_name" /bin/true
+    rm -f $pidfile
+  fi
+
+}
+
+restart(){
+  stop
+  sleep 2
+  start
+}
+
+
+# See how we were called.
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  restart)
+    restart
+    ;;
+  *)
+    echo $"Usage: $0 {start|stop|restart}"
+    exit 1
+esac
+
+exit $?
+
+
