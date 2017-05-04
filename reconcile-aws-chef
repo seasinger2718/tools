@@ -1,0 +1,198 @@
+#!/usr/bin/env bash
+
+#
+# Find mismatches for instances between what is in AWS and in Chef
+# 
+# Usage:
+#
+# reconcile-aws-chef [--stage stage | stage2] [--dry true | false]
+#
+
+ALL_BASE_NAMES="breachreport-drizzle-app breachreport-app idpro-app entitler-drizzle-app entitler-app locate-app locate-handler-app registrar-app vpnprofile-app"
+SKIP_NAMES="registrar-app-stage-qa2"
+
+DEFAULT_DRY_RUN="true"
+DEFAULT_STAGE="stage"
+DEFAULT_KNIFE_DIR="/Users/tflynn/Everything/projects/knife"
+DEFAULT_DNS_SUFFIX=".staging.flexilis.org"
+
+script_path() {
+  SCRIPT_NAME=$(basename ${BASH_SOURCE[0]})
+  SCRIPT_PATH="${BASH_SOURCE[0]}";
+  if ([ -h "${SCRIPT_PATH}" ]) then
+    while([ -h "${SCRIPT_PATH}" ]) do SCRIPT_PATH=`readlink "${SCRIPT_PATH}"`; done
+  fi
+  pushd . > /dev/null
+  cd `dirname ${SCRIPT_PATH}` > /dev/null
+  SCRIPT_PATH=`pwd`;
+  popd  > /dev/null
+}
+
+# Get normalize script name and path
+script_path
+SCRIPT_PATH_FULL="${SCRIPT_PATH}/${SCRIPT_NAME}"
+SCRIPT_NAME=$(basename ${BASH_SOURCE[0]})
+  
+dry_run=$DEFAULT_DRY_RUN
+stage=$DEFAULT_STAGE
+knife_dir=$DEFAULT_KNIFE_DIR
+dns_suffix=$DEFAULT_DNS_SUFFIX
+
+while [[ $# -gt 1 ]]
+do
+  key="$1"
+  
+  case $key in 
+    --stage)
+      stage="$2"
+      shift
+      ;;
+    --dry)
+      dry_run="$2"
+      shift
+      ;;
+  esac
+  shift
+
+done
+
+
+go_knife() {
+  pushd $knife_dir &>/dev/null
+}
+
+go_home() {
+  popd &>/dev/null
+}
+
+find_security_group() {
+  if [ -n $1 ]; then
+    name=$1
+    security_group=$(aws ec2 describe-security-groups --filters Name=group-name,Values=${name} | jq -r ".SecurityGroups[] | .GroupId")    
+    echo "$security_group"
+  else
+    echo ""
+  fi
+}
+
+#i-08f9bc4e8c1880581
+#i-0ea58028a52d855dd
+find_aws_instance_ids() {
+  if [ -n $1 ]; then
+    security_group=$1
+    instanceIDs=$(aws ec2 describe-instances --filters Name=instance.group-id,Values=${security_group} | jq -r ".Reservations[] | .Instances[] | .InstanceId")
+    echo "$instanceIDs"
+  else
+    echo ""
+  fi
+}
+
+#breachreport-drizzle-app-stage-i08f9bc4e.staging.flexilis.org
+#breachreport-drizzle-app-stage-i0ea58028.staging.flexilis.org
+generate_knife_id() {
+  if [ -n $1 ]; then
+    instance_id=$1
+    knife_id_suffix="i${instance_id:2:8}"
+    echo "${knife_id_suffix}"
+  else
+    echo ""
+  fi
+}
+
+string_in_list() {
+  if [ $# -eq 2 ]; then
+    term=$1
+    list=$2
+    echo $list | grep -q $term
+    if [ $? == 0 ]; then
+      echo "true"
+    else
+      echo "false"
+    fi
+  else
+    echo ""
+  fi
+}
+
+# This function wants a prefix, not the whole name
+knife_nodes(){
+  if [ -n $1 ]; then
+    knife_node_pattern="${1}-"
+    nodes=$(knife node list | grep "${knife_node_pattern}" | tr "\n" " ")
+    echo "${nodes}"
+  else
+    echo ""
+  fi
+}
+
+
+skip_knife_nodes() {
+  if [ -n $1 ]; then
+    skip=""
+    knife_node_name=${1}
+    for skip_name in ${SKIP_NAMES}
+    do
+      status=$(string_in_list "${skip_name}" "${knife_node_name}")
+      if [ $status == "true" ]; then
+        skip="skip"
+        break
+      fi
+    done
+    if [ $skip == "skip" ]; then
+      echo "skip"
+    else
+      echo ""
+    fi
+  else
+    echo ""
+  fi
+}
+
+go_knife
+  
+for base_name in $ALL_BASE_NAMES
+do
+  full_name="${base_name}-${stage}"
+  
+  skip=$(string_in_list "${full_name}" "${SKIP_NAMES}")
+  if [ skip == "true" ]; then
+    echo "Skipping $full_name"
+    continue
+  else
+    echo $full_name
+  fi
+  
+  security_group=$(find_security_group $full_name)
+  instance_ids=$(find_aws_instance_ids $security_group)
+  
+  allowed_knife_names=""
+  for instance_id in ${instance_ids}
+  do
+    knife_id=$(generate_knife_id $instance_id)
+    knife_name="${full_name}-${knife_id}${dns_suffix}"
+    allowed_knife_names="${allowed_knife_names} ${knife_name}"
+  done
+
+  knife_nodes="$(knife_nodes ${full_name})"
+  for knife_node in ${knife_nodes}
+  do
+    
+    status=$(string_in_list "${knife_node}" "${allowed_knife_names}")
+    if [ $status == "true" ]; then
+      echo "In AWS: ${knife_node}"
+    else
+      status=$(skip_knife_nodes "${knife_node}")
+      if [ "${status}" == "skip" ]; then
+        echo "Skipping ${knife_node}"
+      else
+        echo "Not in AWS: ${knife_node}"
+        if [ $dry == "false" ]; then
+          echo "Y" | knife node delete ${knife_node}
+        fi
+      fi
+    fi
+  done
+  
+done
+
+go_home

@@ -1,0 +1,5 @@
+#!/usr/bin/env ruby
+
+seconds = ARGV[0].to_i
+
+puts Time.at(seconds).utc.strftime("%Y-%m-%d %H:%M:%S")

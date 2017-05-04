@@ -1,10 +1,19 @@
 #!/usr/bin/env ruby
 
-fs = "%Y-%m-%dT%H:%M:%S.%6NZ"
-fs1 = "%H:%M:%S"
-t = Time.now.utc
-t_ukraine = Time.now.utc.localtime("+02:00")
-t_boston = Time.now.utc.localtime("-05:00")
-t_sf = Time.now.utc.localtime("-08:00")
+fmt_local = "\"%Y-%m-%dT%H:%M:%S\""
+fmt = "\"%Y-%m-%dT%H:%M:%S%z\""
+t_local = `date +#{fmt_local}`.strip.chomp
+t_boston = `TZ=America/New_York date +#{fmt}`.strip.chomp
+t_sf = `TZ=America/Los_Angeles date +#{fmt}`.strip.chomp
+t_ukr = `TZ=Europe/Kiev date +#{fmt}`.strip.chomp
+# 
+# fs = "%Y-%m-%dT%H:%M:%S.%6NZ"
+# fs1 = "%H:%M:%S"
+# t = Time.now.utc
+# t_ukraine = Time.now.utc.localtime("+02:00")
+# t_boston = Time.now.utc.localtime("-05:00")
+# t_sf = Time.now.utc.localtime("-08:00")
+# 
+# puts "#{t.strftime(fs1)} BOS #{t_boston.strftime(fs1)} SF #{t_sf.strftime(fs1)} UKR #{t_ukraine.strftime(fs1)}"
 
-puts "#{t.strftime(fs)} BOS #{t_boston.strftime(fs1)} SF #{t_sf.strftime(fs1)} UKR #{t_ukraine.strftime(fs1)}"
+puts "#{t_local} BOS #{t_boston} SF #{t_sf} UKR #{t_ukr}"

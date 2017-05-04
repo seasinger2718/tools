@@ -1,2 +1,0 @@
-pushd /xenvms/ABCefg 2>%1 >/dev/null ; xm create -c appliance-base.cfg ; popd 2>%1 >/dev/null
-pushd /xenvms/ABCefg 2>%1 >/dev/null ; xm create -c appliance-base.cfg ; popd 2>%1 >/dev/null

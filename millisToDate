@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+
+#puts "ARGV #{ARGV.inspect}"
+
+millis = ARGV[0].to_i
+seconds = millis / 1000
+
+puts Time.at(seconds).utc.strftime("%Y-%m-%d %H:%M:%S")

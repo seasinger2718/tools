@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+# Clean line endings and blank lines
+
+
+# Find untracked files
+# git ls-files --others --exclude-standard
+# Find unstaged files
+# git diff --name-only
+# Find staged files
+# git diff --name-only --cached
+
+# filename=$(basename "$fullfile")
+# filename_no_extension="${filename%.*}"
+# extension="${filename##*.}"
+
+# unique words echo "zebra ant spider spider ant zebra ant" | xargs -n1 | sort -u | xargs ant spider zebra
+
+process_file() {
+  full_file_name="$1"
+  dirname=$(dirname "$full_file_name")
+  filename=$(basename "$full_file_name")
+  filename_base="${filename%.*}"
+  extension="${filename##*.}"
+  
+  backup_file_name="/Users/tflynn/tmp/${filename_base}.bak"
+  #echo "original ${full_file_name}"
+  #echo "backup ${backup_file_name}"
+
+  clean_file "${full_file_name}" "${backup_file_name}"
+  
+}
+
+clean_file() {
+  original="$1"
+  backup="$2"
+  if [ -f "${original}" ]; then
+    #cp "${original}" "${backup}"
+    cmd="cp ${original} ${backup}"
+    echo $cmd
+    $cmd
+    cmd="sed 's/[ \t]*$//' ${backup} > ${original}"
+    echo $cmd
+    sed 's/[ \t]*$//' "${backup}" > "${original}"
+  fi
+}
+
+all_modified_files=$(git ls-files --others --exclude-standard ; git diff --name-only ; git diff --name-only --cached)
+#echo "all_modified_files"
+#echo "${all_modified_files}"
+all_unique_modified_files=$(echo $all_modified_files | sort -u | uniq)
+#echo "Unique files"
+#echo "${all_unique_modified_files}"
+for uf in ${all_unique_modified_files}
+do
+  process_file "$uf"
+done
