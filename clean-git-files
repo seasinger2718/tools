@@ -39,9 +39,9 @@ clean_file() {
     cmd="cp ${original} ${backup}"
     echo $cmd
     $cmd
-    cmd="sed 's/[ \t]*$//' ${backup} > ${original}"
+    cmd="sed 's/[ \t]+$//' ${backup} > ${original}"
     echo $cmd
-    sed 's/[ \t]*$//' "${backup}" > "${original}"
+    sed 's/[ \t]+$//' "${backup}" > "${original}"
   fi
 }
 

@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+
+# Command-line defaults
+help="false"
+dry_run="true"
+asg_name="backup-app-qa0"
+service_name="ntp"
+ssh_user="tflynn"
+sleep_seconds=5
+
+while [[ $# -gt 0 ]]
+do
+  key="$1"
+
+  case $key in
+    -d|--dry-run)
+      dry_run="$2"
+      shift
+      ;;
+    -h|--help)
+      help="true"
+      ;;  
+    -a|--asg)
+      asg_name="$2"
+      shift
+      ;;
+    -s|--svc)
+      service_name="$2"
+      shift
+      ;;
+    --ssh-user)
+      ssh_user="$2"
+      shift
+      ;;
+    --sleep-seconds)
+      sleep_seconds="$2"
+      shift
+      ;;
+  esac
+  shift
+
+done
+
+if [ "${help}" == "true" ]; then
+  cat <<EOH
+./asg_restart_all Restart specified service on all nodes in an ASG
+  
+  [-h|--help] Print this help message and exit
+  [-d|--dry-run] Dry run. Print commands to execute but do not execute. Default "true"
+  [-a|--asg <asg name>] Specify ASG name. Defaults to 'backup-app-qa0'
+  [-s|--svc <service name>] Specify service name. Defaults to 'ntp'
+  [--ssh-user <ssh user>] SSH user for node access. Defaults to 'tflynn'
+  [--sleep-seconds <sleep seconds>] Number of seconds to sleep between successive ssh calls. Defaults to 30 seconds
+EOH
+exit 0
+fi
+
+set -x 
+
+if [ "${ssh_user}" == "tflynn" ]; then
+  ssh_extra=""
+elif [ "${ssh_user}" == "ubuntu" ]; then
+  ssh_extra="-i /Users/tflynn/.ssh/rundeck-stage ubuntu@"
+else
+  ssh_extra=""
+fi
+
+instance_ips=$(asg_ip_addrs "${asg_name}")
+
+for instance_ip in $instance_ips
+do
+  echo "ssh -t ${ssh_extra}$instance_ip"
+  ssh -t ${ssh_extra}$instance_ip <<EOF
+    sudo rm -f /tmp/bash.tmp
+    echo "set -x" > /tmp/bash.tmp
+    echo "service ${service_name} restart" >> /tmp/bash.tmp
+    cat /tmp/bash.tmp
+    if [ "${dry_run}" != "true" ]; then
+      sudo bash /tmp/bash.tmp
+    fi
+EOF
+sleep $sleep_seconds
+done
+

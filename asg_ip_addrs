@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+ASG_NAME=${1:-backup-app-qa0}
+
+instance_ids=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names ${ASG_NAME} | jq -r '.AutoScalingGroups[] | .Instances[] |  .InstanceId')
+
+instance_ips=""
+
+for instance_id in ${instance_ids}
+do
+  instance_ip=$(aws ec2 describe-instances --instance-ids ${instance_id} | jq -r '.Reservations[] | .Instances[] | .NetworkInterfaces[] | .PrivateIpAddress' )
+  if [ "${instance_ips}" == "" ]; then
+    instance_ips="${instance_ip}"
+  else
+    instance_ips="${instance_ips} ${instance_ip}"
+  fi
+done
+
+echo "${instance_ips}"
