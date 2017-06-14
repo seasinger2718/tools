@@ -6,7 +6,7 @@ dry_run="true"
 asg_name="backup-app-qa0"
 service_name="ntp"
 ssh_user="tflynn"
-sleep_seconds=5
+sleep_seconds=30
 
 while [[ $# -gt 0 ]]
 do
@@ -69,7 +69,7 @@ instance_ips=$(asg_ip_addrs "${asg_name}")
 
 for instance_ip in $instance_ips
 do
-  echo "ssh -t ${ssh_extra}$instance_ip"
+  echo "$(date) starting: ssh -t ${ssh_extra}$instance_ip"
   ssh -t ${ssh_extra}$instance_ip <<EOF
     sudo rm -f /tmp/bash.tmp
     echo "set -x" > /tmp/bash.tmp
@@ -79,6 +79,7 @@ do
       sudo bash /tmp/bash.tmp
     fi
 EOF
+  echo "$(date) finished: ssh -t ${ssh_extra}$instance_ip"
 sleep $sleep_seconds
 done
 
