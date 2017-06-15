@@ -6,6 +6,8 @@
 # ruby ./diffjars jar1 jar2
 #
 
+require 'FileUtils'
+
 if ARGV.size != 2
   puts "Usage ruby ./diffjars jar1 jar2"
   exit 1
@@ -32,7 +34,8 @@ end
 TEMP_DIR_BASE=`mktemp -d /tmp/temp.XXXXXXXX`.strip
 
 if ARGV.size == 2
-  working_dir = File.expand_path("#{ENV['HOME']}/Everything/ActivitiesTracelink/tracelink")
+  working_dir=`pwd`.strip.chomp
+  #working_dir = File.expand_path("#{ENV['HOME']}/Everything/ActivitiesTracelink/tracelink")
 else
   working_dir = File.expand_path(ARGV[0])
   ARGV.shift
@@ -57,55 +60,75 @@ Dir.chdir(working_dir) do |current_dir|
     full_jar2 = File.expand_path(current_dir + "/" + jar2)
   end
 
+  def filtered_dir(dir)
+    "#{dir}.filtered"
+  end
+  
+  def copy_wanted(dir)
+    target_dir = filtered_dir(dir)
+    cmd="mkdir -p s#{target_dir}"
+    `#{cmd}`
+    cmd="rsync -a --include='*.class' --include='*/' --exclude='*' #{dir}/ #{target_dir}/"
+    #puts cmd
+    `#{cmd}`
+  end
+  
   if File.file?(full_jar1) and File.file?(full_jar2)
 
     jar1dir = "#{TEMP_DIR_BASE}/jar1"
     jar2dir = "#{TEMP_DIR_BASE}/jar2"
 
-    `mkdir #{jar1dir}`
-    `mkdir #{jar2dir}`
+    `mkdir -p #{jar1dir}`
+    `mkdir -p #{jar2dir}`
 
     `cp #{full_jar1} #{jar1dir}`
     `cp #{full_jar2} #{jar2dir}`
-
+    
     Dir.chdir(jar1dir) do |dir|
       base_jar1 = File.basename(jar1)
-      cmd = "jar -xf #{base_jar1}"
+      cmd = "unzip -o #{base_jar1}"
+      #puts "(#{`pwd`.strip.chomp} About to run cmd #{cmd}"
       `#{cmd}`
-      cmd = "rm #{base_jar1}"
-      `#{cmd}`
-      # Remove other files
-      cmd = "rm #{File.expand_path(dir + '/META-INF/MANIFEST.MF')}"
-      `#{cmd}`
-      pom_props = `find . -name pom.properties`.strip
-      cmd = "rm #{pom_props}"
-      `#{cmd}`
+      copy_wanted(dir)
+      # cmd = "rm #{base_jar1}"
+      # `#{cmd}`
+      # # Remove other files
+      # cmd = "rm #{File.expand_path(dir + '/META-INF/MANIFEST.MF')}"
+      # `#{cmd}`
+      # pom_props = `find . -name pom.properties`.strip
+      # cmd = "rm #{pom_props}"
+      # `#{cmd}`
     end
 
     Dir.chdir(jar2dir) do |dir|
       base_jar2 = File.basename(jar2)
-      cmd = "jar -xf #{base_jar2}"
+      cmd = "unzip -o #{base_jar2}"
+      puts "(#{`pwd`.strip.chomp} About to run cmd #{cmd}"
       `#{cmd}`
       cmd = "rm #{base_jar2}"
       `#{cmd}`
-      # Remove other files
-      cmd = "rm #{File.expand_path(dir + '/META-INF/MANIFEST.MF')}"
-      `#{cmd}`
-      pom_props = `find . -name pom.properties`.strip
-      cmd = "rm #{pom_props}"
-      `#{cmd}`
+      copy_wanted(dir)
+      # # Remove other files
+      # cmd = "rm #{File.expand_path(dir + '/META-INF/MANIFEST.MF')}"
+      # `#{cmd}`
+      # pom_props = `find . -name pom.properties`.strip
+      # cmd = "rm #{pom_props}"
+      # `#{cmd}`
     end
 
-    cmd  = "diff -r #{jar1dir} #{jar2dir}"
+    cmd  = "diff -r #{filtered_dir(jar1dir)} #{filtered_dir(jar2dir)}"
     results = `#{cmd}`
     status = $?.exitstatus
     if status == 0
       puts "No differences found"
     else
       puts "***Differences found***"
-      #puts results
+      File.open("results.txt",'w') do |file|
+        file.puts results
+      end
+      puts "Results in results.txt"
     end
-
+    
   end
 
   #puts "Please delete #{TEMP_DIR_BASE}"
