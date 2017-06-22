@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+ELB_NAME=${1:-backup-vpc}
+
+instance_ids=$(aws elb describe-load-balancers --load-balancer-name ${ELB_NAME} | jq -r '.LoadBalancerDescriptions[] | .Instances[] |  .InstanceId')
+
+instance_ips=""
+
+for instance_id in ${instance_ids}
+do
+  instance_ip=$(aws ec2 describe-instances --instance-ids ${instance_id} | jq -r '.Reservations[] | .Instances[] | .NetworkInterfaces[] | .PrivateIpAddress' )
+  if [ "${instance_ips}" == "" ]; then
+    instance_ips="${instance_ip}"
+  else
+    instance_ips="${instance_ips} ${instance_ip}"
+  fi
+done
+
+echo "${instance_ips}"
