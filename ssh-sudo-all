@@ -26,9 +26,11 @@ asg_set="false"
 elb_name="backup-qa"
 elb_set="false"
 script_name=""
+pre_ssh_script_name=""
 ssh_user="tflynn"
 sleep_seconds=30
 ip_list=""
+action_log="/tmp/default_action.log"
 
 while [[ $# -gt 0 ]]
 do
@@ -58,6 +60,10 @@ do
       ;;
     --script_name)
       script_name="$2"
+      shift
+      ;;
+    --pre-ssh-script)
+      pre_ssh_script_name="$2"
       shift
       ;;
     --ssh-user)
@@ -127,16 +133,24 @@ do
   final_script_name=${script_name:-$default_script_name}
   base_script_name=$(basename $final_script_name)
   #echo "final_script_name $final_script_name"
-  #echo "base_script_name $base_script_name"
+  #echo "base_script_name $base_script_name"  
   scp -q $final_script_name ${ssh_extra}$instance_ip:$base_script_name
   
-  ssh -t ${ssh_extra}$instance_ip <<EOF
+  final_pre_ssh_script_name=${pre_ssh_script_name:-${final_script_name}-pre-ssh}
+  #echo "final_pre_ssh_script_name $final_pre_ssh_script_name"
+  # If there's a pre SSH script to run, run it with destination as argument
+  if [ -f $final_pre_ssh_script_name ]; then
+    ( bash $final_pre_ssh_script_name ${ssh_extra}$instance_ip ) 2>&1 | tee -a $action_log
+  fi
+  
+  (ssh -t ${ssh_extra}$instance_ip <<EOF
     full_script_name="\${HOME}/${base_script_name}"
     chmod a+x \$full_script_name
     if [ "\${dry_run}" != "true" ]; then
       sudo bash \$full_script_name
     fi
 EOF
+) 2>&1 | tee -a $action_log
   
   echo "$(date) finished: ssh -t ${ssh_extra}$instance_ip"  2>&1 | tee -a $action_log
   sleep $sleep_seconds
