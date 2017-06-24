@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+
+set -e
+
+
+is_script_file() {
+  if [ -n "$1" ]; then
+    set +e
+    grep -q '/usr/bin/env' "$1"
+    if [ "$?" == "0" ]; then
+      echo "true"
+    else
+      echo "false"
+    fi
+    set -e
+  else
+    echo "false"
+  fi
+}
+
+# Command-line defaults
+help="false"
+dry_run="true"
+asg_name="backup-app-qa0"
+asg_set="false"
+elb_name="backup-qa"
+elb_set="false"
+script_name=""
+ssh_user="tflynn"
+sleep_seconds=30
+ip_list=""
+
+while [[ $# -gt 0 ]]
+do
+  key="$1"
+
+  case $key in
+    -d|--dry-run)
+      dry_run="$2"
+      shift
+      ;;
+    -h|--help)
+      help="true"
+      ;;  
+    -a|--asg)
+      asg_name="$2"
+      asg_set="true"
+      shift
+      ;;
+    -e|--elb)
+      elb_name="$2"
+      elb_set="true"
+      shift
+      ;;
+    --ip-list)
+      ip_list="$2"
+      shift
+      ;;
+    --script_name)
+      script_name="$2"
+      shift
+      ;;
+    --ssh-user)
+      ssh_user="$2"
+      shift
+      ;;
+    --sleep-seconds)
+      sleep_seconds="$2"
+      shift
+      ;;
+  esac
+  shift
+
+done
+
+if [ "${help}" == "true" ]; then
+  cat <<EOH
+./asg_restart_all Restart specified service on all nodes in an ASG
+  
+  [-h|--help] Print this help message and exit
+  [-d|--dry-run] Dry run. Print commands to execute but do not execute. Default "true"
+  [-a|--asg <asg name>] Specify ASG name. Defaults to 'backup-app-qa0'
+  [--script-name <bash script name>] Specify bash script to execute remote. Defaults to script with 'pwd' statement
+  [--ssh-user <ssh user>] SSH user for node access. Defaults to 'tflynn'
+  [--sleep-seconds <sleep seconds>] Number of seconds to sleep between successive ssh calls. Defaults to 30 seconds
+EOH
+exit 0
+fi
+
+default_script_name="/tmp/script.tmp"
+cat >$default_script_name <<'EOF'
+#!/usr/bin/env bash
+echo "Default remote script"
+pwd
+EOF
+
+#set -x 
+
+if [ "${ssh_user}" == "tflynn" ]; then
+  ssh_extra=""
+elif [ "${ssh_user}" == "ubuntu" ]; then
+  ssh_extra="-i /Users/tflynn/.ssh/rundeck-stage ubuntu@"
+else
+  ssh_extra=""
+fi
+
+if [ -n "$ip_list" ]; then
+  instance_ips="${ip_list}"
+elif [ "$asg_set" == "true" ]; then
+  instance_ips=$(asg_ip_addrs "${asg_name}")
+  action_log="/tmp/asg_execute_log"
+elif [ "$elb_set" == "true" ]; then
+  instance_ips=$(elb_ip_addrs "${elb_name}")
+  action_log="/tmp/elb_execute_log"  
+else
+  echo "Need to specify one of --ip-list ['ip1 ip2 ...'], --asg [backup-app-qa0], --elb [backup-qa]"
+  exit 1
+fi
+
+rm -f $action_log
+
+for instance_ip in $instance_ips
+do
+  echo "$(date) starting: ssh -t ${ssh_extra}$instance_ip" 2>&1 | tee -a $action_log
+
+  #TODO Copy script to remove node and execute
+  final_script_name=${script_name:-$default_script_name}
+  base_script_name=$(basename $final_script_name)
+  #echo "final_script_name $final_script_name"
+  #echo "base_script_name $base_script_name"
+  scp -q $final_script_name ${ssh_extra}$instance_ip:$base_script_name
+  
+  ssh -t ${ssh_extra}$instance_ip <<EOF
+    full_script_name="\${HOME}/${base_script_name}"
+    chmod a+x \$full_script_name
+    if [ "\${dry_run}" != "true" ]; then
+      sudo bash \$full_script_name
+    fi
+EOF
+  
+  echo "$(date) finished: ssh -t ${ssh_extra}$instance_ip"  2>&1 | tee -a $action_log
+  sleep $sleep_seconds
+done
+

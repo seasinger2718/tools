@@ -7,16 +7,16 @@ IP_LIST="10.96.6.236 10.96.5.119 10.96.5.6 10.96.5.213 10.96.6.109 10.96.6.181 1
 
 total_ips=$(echo "${IP_LIST}" | awk '{print NF}' | head -1)
 
-output_dir="/tmp/logs"
+output_dir="${HOME}/tmp/backup_logs"
 mkdir -p "${output_dir}"
 output_file="${output_dir}/many.out"
 rm -rf $output_file
 
 single_command() {
-  echo "$(date) Starting to process ${1}:/var/log/backup/service_access.log" >> $output_file
-  scp -q -C -o CompressionLevel=9 ${1}:/var/log/backup/service_access.log /tmp/backup_logs/${1}.service_access.log 2>&1 >> $output_file
-  scp -q -C -o CompressionLevel=9 ${1}:/var/log/backup/service_app.log /tmp/backup_logs/${1}.service_app.log 2>&1 >> $output_file
-  echo "$(date) Finished processing ${1}:/var/log/backup/service_access.log" >> $output_file
+  echo "$(date) Starting to process ${1}:/var/log/backup/service_access.log" | tee -a $output_file
+  scp -q -C -o CompressionLevel=9 ${1}:/var/log/backup/service_access.log ${output_dir}/${1}.service_access.log 2>&1 >> $output_file
+  scp -q -C -o CompressionLevel=9 ${1}:/var/log/backup/service_app.log ${output_dir}/${1}.service_app.log 2>&1 >> $output_file
+  echo "$(date) Finished processing ${1}:/var/log/backup/service_access.log" | tee -a $output_file
 }
 
 pids=""
