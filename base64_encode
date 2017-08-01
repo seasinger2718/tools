@@ -4,5 +4,5 @@ require 'base64'
 
 val = ARGV[0]
 
-puts Base64.encode64(val)
+puts Base64.strict_encode64(val)
 

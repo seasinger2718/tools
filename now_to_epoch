@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+
+require 'date'
+now = DateTime.now
+puts now.strftime('%s')
+puts now.strftime('%s').to_i * 1000
+puts now.strftime('%Q')

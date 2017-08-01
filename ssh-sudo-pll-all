@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -x
+
 set -e
 
 
@@ -26,10 +28,13 @@ asg_set="false"
 elb_name="backup-qa"
 elb_set="false"
 script_name=""
-pre_ssh_script_name=""
+pre_script_name=""
+use_ssh='false'
 ssh_user="tflynn"
 sleep_seconds=30
 ip_list=""
+run_parallel="false"
+
 action_log="/tmp/default_action.log"
 
 while [[ $# -gt 0 ]]
@@ -58,13 +63,16 @@ do
       ip_list="$2"
       shift
       ;;
-    --script_name)
+    --script-name)
       script_name="$2"
       shift
       ;;
-    --pre-ssh-script)
-      pre_ssh_script_name="$2"
+    --pre-script)
+      pre_script_name="$2"
       shift
+      ;;
+    --ssh)
+      use_ssh="true"
       ;;
     --ssh-user)
       ssh_user="$2"
@@ -73,6 +81,9 @@ do
     --sleep-seconds)
       sleep_seconds="$2"
       shift
+      ;;
+    --parallel)
+      run_parallel="true"
       ;;
   esac
   shift
@@ -125,34 +136,56 @@ fi
 
 rm -f $action_log
 
-for instance_ip in $instance_ips
-do
-  echo "$(date) starting: ssh -t ${ssh_extra}$instance_ip" 2>&1 | tee -a $action_log
+run_one_command() {
+  echo "$(date) starting: ssh -t ${ssh_extra}$instance_ip"
 
-  #TODO Copy script to remove node and execute
   final_script_name=${script_name:-$default_script_name}
   base_script_name=$(basename $final_script_name)
   #echo "final_script_name $final_script_name"
   #echo "base_script_name $base_script_name"  
+
   scp -q $final_script_name ${ssh_extra}$instance_ip:$base_script_name
   
-  final_pre_ssh_script_name=${pre_ssh_script_name:-${final_script_name}-pre-ssh}
-  #echo "final_pre_ssh_script_name $final_pre_ssh_script_name"
-  # If there's a pre SSH script to run, run it with destination as argument
-  if [ -f $final_pre_ssh_script_name ]; then
-    ( bash $final_pre_ssh_script_name ${ssh_extra}$instance_ip ) 2>&1 | tee -a $action_log
+  final_pre_script_name=${pre_script_name:-${final_script_name}-pre}
+  #echo "final_pre_script_name $final_pre_script_name"
+  # If there's a pre script to run, run it with destination as argument
+  if [ -f $final_pre_script_name ]; then
+    bash $final_pre_script_name ${ssh_extra}$instance_ip
   fi
-  
-  (ssh -t ${ssh_extra}$instance_ip <<EOF
-    full_script_name="\${HOME}/${base_script_name}"
-    chmod a+x \$full_script_name
-    if [ "\${dry_run}" != "true" ]; then
-      sudo bash \$full_script_name
-    fi
+  if [ "$ssh" == "true"]; then
+    (ssh -t ${ssh_extra}$instance_ip <<EOF
+full_script_name="\${HOME}/${base_script_name}"
+chmod a+x \$full_script_name
+if [ "${dry_run}" != "true" ]; then
+  sudo bash \$full_script_name
+fi
 EOF
-) 2>&1 | tee -a $action_log
+  ) 2>&1 | tee -a $action_log
   
-  echo "$(date) finished: ssh -t ${ssh_extra}$instance_ip"  2>&1 | tee -a $action_log
+    echo "$(date) finished: ssh -t ${ssh_extra}$instance_ip"
+  fi
+
   sleep $sleep_seconds
+
+}
+
+run_one_command_redirect_output() {
+  sleep_seconds=1
+  (run_one_command) 2>&1 >> $action_log
+}
+
+pids=""
+for instance_ip in $instance_ips
+do
+  if [ "$run_parallel" == "true" ]; then
+    run_one_command_redirect_output  &
+    pid="$!"
+    pids="${pids} $pid"
+  else
+    (run_one_command) 2>&1 | tee -a $action_log
+  fi
 done
 
+if [ "$run_parallel" == "true" ]; then
+  wait $pids
+fi

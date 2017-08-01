@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+
+elbs_name_dns=$(aws elb describe-load-balancers | jq -r '.LoadBalancerDescriptions[] | .LoadBalancerName + "|" +  .DNSName') 
+
+
+for elb_name_dns in ${elbs_name_dns}
+do
+  elb_name=$(echo "${elb_name_dns}" | cut -d'|' -f1)
+  elb_dns=$(echo "${elb_name_dns}" | cut -d'|' -f2)
+  echo "elb_name ${elb_name} elb_dns ${elb_dns}"
+
+  elb_ips=$(dig ${elb_dns}| grep ${elb_dns} | grep -v DiG | grep -v '^;' | awk '{print $5}')
+  elb_ips=$(echo "${elb_ips}" | tr '\n' ' ' | sed 's/ $//g' )
+  
+  echo "${elb_ips}"
+
+done
+
