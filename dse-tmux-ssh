@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+
+#set -x 
+
+tmux_session_name="dse-ssh"
+r=$(tmux ls | grep 'dse-ssh')
+rstat="$?"
+if [ "$rstat" == "0" ]; then
+  tmux kill-session -t dse-ssh
+  tmux new-session -s ${tmux_session_name} -d 
+fi
+
+host_file="dse_hosts"
+IP_LIST=$(cat ${host_file})
+
+total_hosts=$(wc -l ${host_file} | awk '{print $1}')
+
+total_cols=5
+total_rows=$(( ($total_hosts + $total_cols) / $total_cols ))
+if (( ($total_hosts % total_cols) == 0 )); then
+  total_rows=$(( $total_rows - 1 ))
+fi
+previous_col=0
+col=1
+row=1
+
+# for ip in $IP_LIST
+# do
+#   if (( $col > ${total_cols} )); then
+#     col=1
+#     row=$(($row + 1))
+#     tmux send-keys -t ${tmux_session_name} 'C-b' '%'
+#   fi
+#   tmux send-keys -t ${tmux_session_name} 'C-b' '"'
+#   tmux send-keys -t ${tmux_session_name} "echo \"${row}:${col} $ip\" "
+#   col=$(($col + 1))
+# done
+
+# Split into appropriate number of rows - remember first row is already there
+for r in `seq 1 $(( $total_rows - 1 ))`
+do
+  tmux splitw
+done
+# Go back to the current first pane
+tmux selectp -t 0
+# Spread vertically
+tmux selectl even-vertical
+
+# For each row, split into columns
+for r in `seq 1 ${total_rows}`
+do
+  for c in `seq 1 $(( $total_cols - 1 ))`
+  do 
+    # Select the first pane in the row
+    start_pane=$(( $r - 1 ))
+    start_pane=$(( $start_pane * $total_cols ))
+    tmux selectp -t $start_pane
+    # split horizontally
+    tmux splitw -h
+  done
+  
+done
+
+tmux selectl tiled
+
+
+## tmux selectp -t ${tmux_session_name}
+# tmux selectp -t 0
+# tmux splitw -h -p 50
+# tmux selectp -t 0
+
+# tmux splitw ; tmux splitw ; tmux splitw ; tmux splitw ; tmux selectl even-horizontal
+# tmux selectp -t 0
+# tmux splitw -h ; tmux splitw -h ; tmux splitw -h  ; tmux splitw -h  ; tmux splitw -h ; tmux selectl even-vertical

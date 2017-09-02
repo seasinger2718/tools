@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+
+require 'date'
+
+# Date format   2017-08-07T20:54:10+00:00
+
+parsed_date = Date.parse(ARGV[0])
+puts parsed_date.strftime('%s')
