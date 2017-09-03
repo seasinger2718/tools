@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+proc_name="$1"
+
+if [ -f /tmp/${proc_name}.pid ]; then
+  pid=$(cat /tmp/${proc_name}.pid)
+else
+  pid=$(get_pid ${proc_name})
+fi
+kill -9 $pid

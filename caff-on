@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+caffeinate &
+pid=$!
+echo "$pid" > /tmp/caffeinate.pid
+

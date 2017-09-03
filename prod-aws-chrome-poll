@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+aws_url="https://us-west-2.console.aws.amazon.com/ec2/v2/home?region=us-west-2#Instances:search=cassandra-backup-core-prod-0;sort=desc:launchTime"
+
+chrome_keep_alive() {
+    osascript <<SCRIPT_CONTENTS
+tell application "Google Chrome"
+  activate
+  set theUrl to "https://us-west-2.console.aws.amazon.com/ec2/v2/home?region=us-west-2#Instances:search=cassandra-backup-core-prod-0;sort=desc:launchTime"
+	if (count every window) = 0 then
+		make new window
+	end if
+	
+	set found to false
+	set theTabIndex to -1
+	repeat with theWindow in every window
+		set theTabIndex to 0
+		repeat with theTab in every tab of theWindow
+			set theTabIndex to theTabIndex + 1
+			if theTab's URL = theUrl then
+				set found to true
+				exit
+			end if
+		end repeat
+		
+		if found then
+			exit repeat
+		end if
+	end repeat
+	
+	if found then
+		tell theTab to reload
+		set theWindow's active tab index to theTabIndex
+		set index of theWindow to 1
+	else
+		tell window 1 to make new tab with properties {URL:theUrl}
+	end if
+end tell
+SCRIPT_CONTENTS
+}
+
+chrome_poll() {
+  while true
+  do
+    chrome_keep_alive
+    sleep 300
+  done
+}
+
+chrome_poll &
+pid="$!"
+echo $pid > /tmp/prod-aws-chrome-poll.pid
+
+
+

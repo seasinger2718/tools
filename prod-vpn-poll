@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+poll_cmd() {
+  while true
+  do 
+    ssh -i ~/.ssh/rundeck-stage ubuntu@10.97.3.149 "pwd" 2>/dev/null 1>/dev/null
+    sleep 60
+  done
+}
+
+poll_cmd &
+pid="$!"
+echo $pid > /tmp/prod-vpn-poll.pid
+
