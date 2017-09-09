@@ -1,0 +1,164 @@
+#!/usr/bin/env ruby
+
+# Add the following function to ~/.bashrc or equivalent file
+#
+# 
+# ecs_cli() function {} {
+#  ecs-cli-wrapper "$@"
+#}
+
+require 'singleton'
+require 'fileutils'
+
+class CommonConfig
+  include Singleton
+  
+  attr_accessor :default_ecs_config, :original_ecs_cli, :original_args, :original_command_line, :ecs_command
+  
+  def initialize
+    @default_ecs_config = "#{ENV['HOME']}/.ecs/config"
+    @original_ecs_cli = `which ecs-cli`.chomp.strip
+    @original_args = ARGV.dup
+    @original_command_line = [@original_ecs_cli] + @original_args
+    @ecs_command = ARGV[0]
+  end
+  
+  def cluster
+    cluster = nil
+    @original_args.each_with_index do |val, index|
+      if val =~ /^--cluster/ or val =~ /^-c/
+        if index + 1 <= @original_args.length
+          cluster = @original_args[index + 1]
+        end
+      end
+    end
+    cluster
+  end
+  
+  def cluster_file_name(cluster)
+    "#{ENV['HOME']}/.ecs/config.#{cluster}"
+  end
+  
+  def configure_command?
+    @ecs_command == 'configure'
+  end
+  
+end
+
+class ECSConfig
+  
+  attr_accessor :cluster, :aws_profile, :region, :aws_access_key_id, :aws_secret_access_key
+  attr_accessor :compose_project_name_prefix, :compose_service_name_prefix, :cfn_stack_name_prefix
+  
+  def initialize(file_name = CommonConfig.instance.default_ecs_config )
+    if File.file?(file_name)
+      parse_file(file_name)
+    end
+  end
+  
+  def parse_file(file_name)
+    lines = File.readlines(file_name)
+    lines.each do |line|
+      next if line =~ /^\s*$/
+      next if line =~ /^\[/
+      line = line.strip.chomp
+      parts = line.split(' ')
+      key = parts[0].gsub('-','_')
+      value = parts[2]
+      eval("@#{key} = '#{value}'")
+    end
+  end
+
+  def prettify_line(key, value)
+    key_length = 27
+    if key =~ /^compose/ or key =~ /^cfn/
+      key = key.gsub('_','-') 
+    end
+    key_padding = ' ' * key_length
+    padded_key = (key + key_padding)[0...key_length]
+    "#{padded_key} = #{value}"
+  end
+  
+  def save_file(file_name = nil)
+    if file_name.nil?
+      file = STDOUT
+    else
+      file = File.open(file_name,'w')
+    end
+    file.puts '[ecs]'
+    file.puts prettify_line('cluster', @cluster)
+    file.puts prettify_line('aws_profile', @aws_profile)
+    file.puts prettify_line('region', @region)
+    file.puts prettify_line('aws_access_key_id', @aws_access_key_id)
+    file.puts prettify_line('aws_secret_access_key', @aws_secret_access_key)
+    file.puts prettify_line('compose_project_name_prefix', @compose_project_name_prefix)
+    file.puts prettify_line('compose_service_name_prefix', @compose_service_name_prefix)
+    file.puts prettify_line('cfn_stack_name_prefix', @cfn_stack_name_prefix)
+    file.close unless file_name.nil?
+  end
+
+  def merge(other_config)
+    @cluster = other_config.cluster if (@cluster.nil? or @cluster == '')
+    @aws_profile = other_config.aws_profile if (@aws_profile.nil? or @aws_profile == '')
+    @region = other_config.region if (@region.nil? or @region == '')
+    @aws_access_key_id = other_config.aws_access_key_id if (@aws_access_key_id.nil? or @aws_access_key_id == '')
+    @aws_secret_access_key = other_config.aws_secret_access_key if (@aws_secret_access_key.nil? or @aws_secret_access_key == '')
+    @compose_project_name_prefix = other_config.compose_project_name_prefix if (@compose_project_name_prefix.nil? or @compose_project_name_prefix == '')
+    @compose_service_name_prefix = other_config.compose_service_name_prefix if (@compose_service_name_prefix.nil? or @compose_service_name_prefix == '')
+    @cfn_stack_name_prefix = other_config.cfn_stack_name_prefix if (@cfn_stack_name_prefix.nil? or @cfn_stack_name_prefix == '')
+  end
+  
+end
+
+class CLIWrapper
+
+  def initialize
+    @common_config = CommonConfig.instance
+    @default_ecs_config = ECSConfig.new
+  end
+  
+  def process
+    # If cluster is not specified on command-line or in standard config, then it's a brand-new config. 
+    # Save new config after issuing command
+    if @common_config.configure_command?
+      cluster = @common_config.cluster || @default_ecs_config.cluster
+      if cluster
+        # Is there a saved config for this cluster?
+        cluster_file_name = @common_config.cluster_file_name(cluster)
+        if File.file?(cluster_file_name)
+          # Replace default ECS config with saved config
+          FileUtils.cp cluster_file_name , @common_config.default_ecs_config
+        end
+      end
+    end
+
+    # Execute actual command
+    puts @common_config.original_command_line.join(' ')
+    puts `#{@common_config.original_command_line.join(' ')}`
+
+    # Save updated config if a configure command
+    if @common_config.configure_command?
+      cluster = @common_config.cluster || @default_ecs_config.cluster
+      if cluster
+         # Is there a saved config for this cluster?
+        saved_cluster_file_name = @common_config.cluster_file_name(cluster)
+        if File.file?(saved_cluster_file_name)
+          saved_cluster_config = ECSConfig.new(saved_cluster_file_name)
+          # Get the updated default config
+          updated_default_ecs_config = ECSConfig.new
+          # Restore missing fields from saved config
+          updated_default_ecs_config.merge(saved_cluster_config)
+          # Save default config
+          updated_default_ecs_config.save_file(@common_config.default_ecs_config)
+        end
+        # Save named config regardless
+        FileUtils.cp @common_config.default_ecs_config, saved_cluster_file_name
+      end
+    end    
+  end
+  
+end
+
+wrapper = CLIWrapper.new
+wrapper.process
+
