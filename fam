@@ -7,7 +7,7 @@ if ARGV.size == 0
   exit 1
 end
 
-DEBUG = FALSE
+DEBUG = false
 
 # Look in familiar places
 HOME_DIR =  ENV['HOME']
