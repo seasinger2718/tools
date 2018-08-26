@@ -1,11 +1,15 @@
 #!/usr/bin/env ruby
 
+#
+# Copy this script to a directory in your path and make executable.
+#
 # Add the following function to ~/.bashrc or equivalent file
 #
 # 
-# ecs_cli() function {} {
+# ecs-cli() function {} {
 #  ecs-cli-wrapper "$@"
 #}
+#
 
 require 'singleton'
 require 'fileutils'
@@ -133,7 +137,7 @@ class CLIWrapper
     end
 
     # Execute actual command
-    puts @common_config.original_command_line.join(' ')
+    #puts @common_config.original_command_line.join(' ')
     puts `#{@common_config.original_command_line.join(' ')}`
 
     # Save updated config if a configure command
