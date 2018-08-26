@@ -17,5 +17,6 @@ now_bos = now - bos_offset
 now_sf = now - sf_offset
 now_ukr = now - ukr_offset
 
-puts "#{now.iso8601} #{now.strftime(mod_8601)} BOS #{now_bos.strftime(local_no_tz)} SF #{now_sf.strftime(local_no_tz)} UKR #{now_ukr.strftime(local_no_tz)}"
+#puts "#{now.iso8601} #{now.strftime(mod_8601)} BOS #{now_bos.strftime(local_no_tz)} SF #{now_sf.strftime(local_no_tz)} UKR #{now_ukr.strftime(local_no_tz)}"
+puts "#{now.iso8601} BOS #{now_bos.strftime(local_no_tz)} SF #{now_sf.strftime(local_no_tz)} UKR #{now_ukr.strftime(local_no_tz)}"
 
