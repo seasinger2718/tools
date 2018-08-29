@@ -3,71 +3,97 @@
 import sys
 import os
 from os import path
+import shutil
+import argparse
 
-if len(sys.argv) == 1:
+def clean_easy_install_pth(pth_file_name, match_string):
+    pth_file_name_backup = "{0}.bak".format(pth_file_name)
+    shutil.copy(pth_file_name, pth_file_name_backup)
+    with open(pth_file_name,'w') as ofile:
+        with open(pth_file_name_backup,'r') as ifile:
+            line = ifile.readline()
+            if match_string not in line:
+                ofile.write(line)
+
+
+def usage():
+    print("python_clean_path [prefix] [-f]")
+
+
+def clean_it(argv):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p","--prefix", help="Specify package prefix")
+    parser.add_argument("-f","--force", help="Force deletion of matching path", action="store_true")
+
+    args = parser.parse_args()
+
+    # Scope variable
+    package_prefix = None
+
+    if args.prefix:
+        package_prefix = args.prefix
+    else:
+        cwd = os.getcwd()
+        cwd_basename = path.basename(cwd)
+        package_prefix = cwd_basename
+
+    # Deal with easy-install.pth files first
+    # Do this here for efficiency
+    ps = sys.path
+    for p in ps:
+        if path.exists(p):
+            easyinstall_path = "{0}/easy-install.pth".format(p)
+
+            if os.path.isfile(easyinstall_path):
+                clean_file = False
+
+                with open(easyinstall_path, 'r') as file_in:
+                    contents = file_in.read()
+                    if package_prefix in contents:
+                        clean_file = True
+
+                # Do this in two passes to ensure easy-install.pth file
+                # is closed before being re-opened
+                if clean_file:
+                    print("Cleaning path file {0}".format(easyinstall_path))
+                    clean_easy_install_pth(easyinstall_path, package_prefix)
+
+    # Reload system path because it's just been messed with
+    ps = sys.path
+    matching_paths = []
+    for p in ps:
+        if path.exists(p):
+            # Skip anything that matches the project directory itself
+            # Do this here for efficiency
+            cwd = os.getcwd()
+            cwd_basename = path.basename(cwd)
+            path_basename = path.basename(p)
+            if path_basename == cwd_basename:
+                 continue
+
+            cmd="find {0} -iname \*{1}\*".format(p,package_prefix)
+            find_out=os.popen(cmd).read().strip()
+            if find_out:
+                matches = find_out.split()
+                for match in matches:
+                    if match not in matching_paths:
+                        matching_paths.append(match)
+
     cwd = os.getcwd()
     cwd_basename = path.basename(cwd)
-    package_prefix = cwd_basename
-elif len(sys.argv) == 2:
-    package_prefix = sys.argv[1]
 
-#print("package_prefix {0}".format(package_prefix))
-
-ps=sys.path
-
-matching_paths = []
-
-for p in ps:
-    if path.exists(p):
-        cmd="find {0} -iname \*{1}\*".format(p,package_prefix)
-        #print(cmd)
-        find_out=os.popen(cmd).read().strip()
-        #print(find_out)
-        if find_out:
-            matches = find_out.split()
-            for match in matches:
-                if match not in matching_paths:
-                    matching_paths.append(match)
-                    print("{0}".format(match))
-
-
-print("matching_paths {0}".format(matching_paths))
-
-for matching_path in matching_paths:
-    match_basename = path.basename(match)
-    if match_basename == cwd_basename:
-        print("Skipping {9}".format(match_basename))
-    else:
-        pass
-        
+    for matching_path in matching_paths:
+        match_basename = path.basename(matching_path)
+        if match_basename == cwd_basename:
+            print("Skipping {0}".format(matching_path))
+        else:
+            print("Deleting {0}".format(matching_path))
+            if path.isdir(matching_path):
+                shutil.rmtree(matching_path)
+            else:
+                os.remove(matching_path)
         
 
-#
-#
-# matches=$( echo $python_script | python3 - )
-#
-# for match in $matches
-# do
-#   echo "XXX${match}XXX"
-# done
-#
-# exit 0
-# #echo $matches
-#
-# current_dir_basename=$(basename $PWD)
-# #echo "current_dir_basename $current_dir_basename"
-#
-# for match in $matches
-# do
-#   match_basename=$(basename $match)
-#   #echo "match_basename $match_basename"
-#   if [ "$match_basename" == "$current_dir_basename"  ]; then
-#     echo "Skipping $match"
-#   else
-#     if [ -f $match ] || [ -d $match ]; then
-#       echo "Deleting $match"
-#       rm -rf $match
-#     fi
-#   fi
-# done
-#
+if __name__ == "__main__":
+    clean_it(sys.argv[1:])
+    sys.exit(0)
