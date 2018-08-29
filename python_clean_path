@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+matches=$(python3 - <<PEOF
+import sys
+import os
+from os import path
+
+pwd=os.getcwd()
+basename=path.basename(pwd)
+
+ps=sys.path
+
+for p in ps:
+  if path.exists(p):
+    cmd="find {0} -iname \*{1}\*".format(p,basename)
+    #print(cmd)
+    find_out=os.popen(cmd).read().strip()
+    if find_out:
+      print("{0}".format(find_out))
+    
+PEOF
+)
+  
+#echo $matches
+for match in $matches
+do
+  echo "Deleting $match"
+  rm -rf $match
+done
+
+
