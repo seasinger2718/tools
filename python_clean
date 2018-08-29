@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+
+"""
+function clean_python() {
+  rm -rf *.egg-info
+  rm -rf dist build
+  cache_files=$(find . -type d -name  \*pycache\*)
+  for cache_file in  $(find . -type d -name  \*pycache\*)
+  do
+    rm -rf $cache_file
+  done
+  current_dir=$(pwd)
+  package_prefix=$(basename ${current_dir})
+  #echo "current_dir $current_dir package_prefix $package_prefix"
+  for matching_file in $(p3_find_packages "$package_prefix")
+  do
+    #echo "current_dir $current_dir matching_file $matching_file"
+    if ! [[ "$matching_file" =~ ^${current_dir}  ]]; then
+      echo "Deleting $matching_file"
+      #echo "rm -rf $matching_file"
+      rm -rf "$matching_file"
+    fi
+  done
+  p3_cleanup_easyinstall "$package_prefix"
+}
+"""
+
+import sys
+import os
+from os import path
+import shutil
+import argparse
+import glob
+
+def usage():
+    print("""python_clean [prefix]
+
+    Clean the current package and associated package path of everything to do with a particular package (prefix)
+
+    If the prefix is not given, assume the current directory name is the prefix.
+
+    """)
+
+def clean_it(argv):
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-p", "--prefix", help="Specify package prefix")
+
+    args = parser.parse_args()
+
+    # Scope variable
+    package_prefix = None
+
+    cwd = os.getcwd()
+    if args.prefix:
+        package_prefix = args.prefix
+    else:
+        cwd_basename = path.basename(cwd)
+        package_prefix = cwd_basename
+
+    # Check current directory and one level up
+    dirs_to_remove = ['build', 'dist', '../build', '../dist']
+    dirs_to_remove.extend(glob.glob("*egg-info"))
+    # Limit to *egg_info that belongs to this package
+    more_egg_info_dirs = list(filter(lambda x: package_prefix in x, glob.glob("../*egg-info")))
+    dirs_to_remove.extend(more_egg_info_dirs)
+    for subdir in dirs_to_remove :
+        full_path = path.join(cwd,subdir)
+        if path.isdir(full_path):
+            shutil.rmtree(full_path)
+
+    cache_files = glob.glob("../*pycache*", recursive=True)
+    for cache_file in cache_files:
+        os.remove(cache_file)
+
+    cmd = "python_clean_path -p {0}".format(package_prefix)
+    output = os.popen(cmd).read().strip()
+    print(output)
+
+
+if __name__ == "__main__":
+    clean_it(sys.argv[1:])
+    sys.exit(0)
