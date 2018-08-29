@@ -17,13 +17,18 @@ def clean_easy_install_pth(pth_file_name, match_string):
 
 
 def usage():
-    print("python_clean_path [prefix] [-f]")
+    print("""python_clean_path [prefix]
+    
+    Clean the python package path of everything to do with a particular package (prefix)
+    
+    If the prefix is not given, assume the current directory name is the prefix.
+    
+    """)
 
 
 def clean_it(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument("-p","--prefix", help="Specify package prefix")
-    parser.add_argument("-f","--force", help="Force deletion of matching path", action="store_true")
 
     args = parser.parse_args()
 
