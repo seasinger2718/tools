@@ -5,6 +5,7 @@ import os
 from os import path
 import shutil
 import argparse
+import glob
 
 def clean_easy_install_pth(pth_file_name, match_string):
     pth_file_name_backup = "{0}.bak".format(pth_file_name)
@@ -17,7 +18,7 @@ def clean_easy_install_pth(pth_file_name, match_string):
 
 
 def usage():
-    print("""python_clean_path [prefix]
+    print("""python_clean_path -p prefix -v verbose
     
     Clean the python package path of everything to do with a particular package (prefix)
     
@@ -29,6 +30,7 @@ def usage():
 def clean_it(argv):
     parser = argparse.ArgumentParser()
     parser.add_argument("-p","--prefix", help="Specify package prefix")
+    parser.add_argument("-v","--verbose", help="Set verbosity level", action="store_true")
 
     args = parser.parse_args()
 
@@ -42,6 +44,13 @@ def clean_it(argv):
         cwd_basename = path.basename(cwd)
         package_prefix = cwd_basename
 
+    if args.verbose:
+        verbose = True
+        print("verbose mode enabled")
+    else:
+        verbose = False
+        print("verbose mode disabled")
+
     # Deal with easy-install.pth files first
     # Do this here for efficiency
     ps = sys.path
@@ -49,12 +58,20 @@ def clean_it(argv):
         if path.exists(p):
             easyinstall_path = "{0}/easy-install.pth".format(p)
 
+            if verbose:
+                print("easy_install_path {0}".format(easyinstall_path))
+
             if os.path.isfile(easyinstall_path):
                 clean_file = False
 
                 with open(easyinstall_path, 'r') as file_in:
                     contents = file_in.read()
+
+                    if verbose:
+                        print("easy_install_path contents {0}".format(contents))
+
                     if package_prefix in contents:
+                        print("easy_install_path cleaning")                        
                         clean_file = True
 
                 # Do this in two passes to ensure easy-install.pth file
@@ -68,6 +85,8 @@ def clean_it(argv):
     matching_paths = []
     for p in ps:
         if path.exists(p):
+            if p == "/usr/local/Cellar/python/3.7.0/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages":
+                print("Checking path {0}".format(p))
             # Skip anything that matches the project directory itself
             # Do this here for efficiency
             cwd = os.getcwd()
@@ -76,13 +95,11 @@ def clean_it(argv):
             if path_basename == cwd_basename:
                  continue
 
-            cmd="find {0} -iname \*{1}\*".format(p,package_prefix)
-            find_out=os.popen(cmd).read().strip()
-            if find_out:
-                matches = find_out.split()
-                for match in matches:
-                    if match not in matching_paths:
-                        matching_paths.append(match)
+            match_pattern = "{0}/{1}*".format(p,package_prefix)
+            matches = glob.glob(match_pattern, recursive=True)
+            for match in matches:
+                if match not in matching_paths:
+                    matching_paths.append(match)
 
     cwd = os.getcwd()
     cwd_basename = path.basename(cwd)

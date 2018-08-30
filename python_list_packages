@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+
+import sys
+import os
+from textwrap import dedent
+
+for p in sys.path:
+	cmd = "cd {0}; ls -1".format(p)
+	cmd_out = os.popen(cmd).read().strip()
+	msg = dedent("""
+
+	========
+	
+	path {0}
+	packages 
+	""".format(p,cmd_out))
+
+	print(msg)
+	print(cmd_out)
+
+
