@@ -1,30 +1,5 @@
 #!/usr/bin/env python3
 
-"""
-function clean_python() {
-  rm -rf *.egg-info
-  rm -rf dist build
-  cache_files=$(find . -type d -name  \*pycache\*)
-  for cache_file in  $(find . -type d -name  \*pycache\*)
-  do
-    rm -rf $cache_file
-  done
-  current_dir=$(pwd)
-  package_prefix=$(basename ${current_dir})
-  #echo "current_dir $current_dir package_prefix $package_prefix"
-  for matching_file in $(p3_find_packages "$package_prefix")
-  do
-    #echo "current_dir $current_dir matching_file $matching_file"
-    if ! [[ "$matching_file" =~ ^${current_dir}  ]]; then
-      echo "Deleting $matching_file"
-      #echo "rm -rf $matching_file"
-      rm -rf "$matching_file"
-    fi
-  done
-  p3_cleanup_easyinstall "$package_prefix"
-}
-"""
-
 import sys
 import os
 from os import path

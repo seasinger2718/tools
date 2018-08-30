@@ -46,10 +46,10 @@ def clean_it(argv):
 
     if args.verbose:
         verbose = True
-        print("verbose mode enabled")
+        #print("verbose mode enabled")
     else:
         verbose = False
-        print("verbose mode disabled")
+        #print("verbose mode disabled")
 
     # Deal with easy-install.pth files first
     # Do this here for efficiency
@@ -85,15 +85,11 @@ def clean_it(argv):
     matching_paths = []
     for p in ps:
         if path.exists(p):
-            if p == "/usr/local/Cellar/python/3.7.0/Frameworks/Python.framework/Versions/3.7/lib/python3.7/site-packages":
-                print("Checking path {0}".format(p))
-            # Skip anything that matches the project directory itself
+            # Skip any path that contains 'setup.py' at the top level. This
             # Do this here for efficiency
-            cwd = os.getcwd()
-            cwd_basename = path.basename(cwd)
-            path_basename = path.basename(p)
-            if path_basename == cwd_basename:
-                 continue
+            setup_py_path = path.join(p,"setup.py")
+            if path.exists(setup_py_path):
+                continue
 
             match_pattern = "{0}/{1}*".format(p,package_prefix)
             matches = glob.glob(match_pattern, recursive=True)
@@ -101,14 +97,18 @@ def clean_it(argv):
                 if match not in matching_paths:
                     matching_paths.append(match)
 
-    cwd = os.getcwd()
-    cwd_basename = path.basename(cwd)
-
     for matching_path in matching_paths:
-        match_basename = path.basename(matching_path)
-        if match_basename == cwd_basename:
+        setup_py_path = path.join(p, "setup.py")
+        remove = False
+
+        if 'egg-link' in matching_path:
+            remove = True
+        elif path.exists(setup_py_path):
             print("Skipping {0}".format(matching_path))
         else:
+            remove = True
+
+        if remove:
             print("Deleting {0}".format(matching_path))
             if path.isdir(matching_path):
                 shutil.rmtree(matching_path)
