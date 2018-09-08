@@ -6,6 +6,7 @@ from os import path
 import shutil
 import argparse
 import glob
+import subprocess
 
 def usage():
     print("""python_clean [prefix]
@@ -37,7 +38,9 @@ def clean_it(argv):
     dirs_to_remove = ['build', 'dist', '../build', '../dist']
     dirs_to_remove.extend(glob.glob("*egg-info"))
     # Limit to *egg_info that belongs to this package
-    more_egg_info_dirs = list(filter(lambda x: package_prefix in x, glob.glob("../*egg-info")))
+    more_egg_info_dirs = list(filter(lambda x: package_prefix in x, 
+                                     glob.glob("../*egg-info")))
+    
     dirs_to_remove.extend(more_egg_info_dirs)
     for subdir in dirs_to_remove :
         full_path = path.join(cwd,subdir)
@@ -49,7 +52,8 @@ def clean_it(argv):
         os.remove(cache_file)
 
     cmd = "python_clean_path -p {0}".format(package_prefix)
-    output = os.popen(cmd).read().strip()
+    output = (subprocess.Popen(cmd shell=True, executable='/bin/bash')
+                        .read().strip())
     print(output)
 
 

@@ -3,19 +3,45 @@
 import sys
 import os
 from textwrap import dedent
-
-for p in sys.path:
-	cmd = "cd {0}; ls -1".format(p)
-	cmd_out = os.popen(cmd).read().strip()
-	msg = dedent("""
-
-	========
-	
-	path {0}
-	packages 
-	""".format(p,cmd_out))
-
-	print(msg)
-	print(cmd_out)
+from subprocess import Popen, PIPE, STDOUT
 
 
+def print_header(path):
+    msg = dedent("""
+
+    ========
+
+    path {0}
+    packages 
+
+    """).format(path)
+    print(msg)
+    return
+
+
+def print_footer():
+    msg = dedent("""
+    ========
+    """)
+    print(msg)
+    return
+
+
+for path in sys.path:
+    if os.path.exists(path):
+        print_header(path)
+        cmd = ["ls -1"]
+        p = Popen(cmd,
+                  cwd=path,
+                  shell=True,
+                  executable='/bin/bash',
+                  stdin=PIPE,
+                  stdout=PIPE,
+                  stderr=STDOUT,
+                  close_fds=True
+                 )
+        for line in p.stdout:
+            line = line.decode("utf-8").strip()
+            print(line)
+
+        print_footer()
