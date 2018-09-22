@@ -3,10 +3,12 @@
 import sys
 import os
 from os import path
+import io
 import shutil
 import argparse
 import glob
 import subprocess
+from subprocess import PIPE
 
 def usage():
     print("""python_clean [prefix]
@@ -51,10 +53,19 @@ def clean_it(argv):
     for cache_file in cache_files:
         os.remove(cache_file)
 
-    cmd = "python_clean_path -p {0}".format(package_prefix)
-    output = (subprocess.Popen(cmd shell=True, executable='/bin/bash')
-                        .read().strip())
-    print(output)
+    #cmd = "/usr/local/bin/python_clean_path --prefix {0}".format(package_prefix)
+    cmd = "/usr/local/bin/python_clean_path"
+    cmd_arr = cmd.split(" ")
+    #completed_subprocess = subprocess.run(cmd_arr, capture_output=True, text=True)
+    proc = subprocess.Popen(cmd_arr, stdout=PIPE, stderr=PIPE, universal_newlines=True)
+    proc_stdout, proc_stderr = proc.communicate()
+
+    if proc_stdout:
+        print(proc_stdout)
+    if proc_stderr:
+        print(proc_stderr)
+
+
 
 
 if __name__ == "__main__":

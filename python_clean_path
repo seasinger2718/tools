@@ -109,12 +109,13 @@ def clean_it(argv):
             remove = True
 
         if remove:
-            print("Deleting {0}".format(matching_path))
             if path.isdir(matching_path):
+                print("Deleting {0}".format(matching_path))
                 shutil.rmtree(matching_path)
             else:
-                os.remove(matching_path)
-        
+                if path.exists(matching_path):
+                    print("Deleting {0}".format(matching_path))
+                    os.remove(matching_path)
 
 if __name__ == "__main__":
     clean_it(sys.argv[1:])

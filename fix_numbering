@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+$MYBIN/fix_numbering.py "$@"
