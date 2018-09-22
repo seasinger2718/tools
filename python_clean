@@ -53,19 +53,22 @@ def clean_it(argv):
     for cache_file in cache_files:
         os.remove(cache_file)
 
-    #cmd = "/usr/local/bin/python_clean_path --prefix {0}".format(package_prefix)
-    cmd = "/usr/local/bin/python_clean_path"
-    cmd_arr = cmd.split(" ")
+    cmd = "/usr/local/bin/python_clean_path --prefix {0}".format(package_prefix)
+
+    # Popen adds additional arguments that get passed to the called process.
+    #cmd_arr = cmd.split(" ")
     #completed_subprocess = subprocess.run(cmd_arr, capture_output=True, text=True)
-    proc = subprocess.Popen(cmd_arr, stdout=PIPE, stderr=PIPE, universal_newlines=True)
-    proc_stdout, proc_stderr = proc.communicate()
+    #proc = subprocess.Popen(cmd_arr, stdout=PIPE, stderr=PIPE, universal_newlines=True)
+    #proc_stdout, proc_stderr = proc.communicate()
 
-    if proc_stdout:
-        print(proc_stdout)
-    if proc_stderr:
-        print(proc_stderr)
+    # if proc_stdout:
+    #     print(proc_stdout)
+    # if proc_stderr:
+    #     print(proc_stderr)
 
-
+    # So, although this is no longer recommended it works ...
+    cmd_results = os.system(cmd)
+    print(cmd_results)
 
 
 if __name__ == "__main__":
