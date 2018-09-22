@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+echo "Current dir $(pwd)"
+echo "Args passed " "$@"

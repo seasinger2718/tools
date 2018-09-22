@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+# Remove: --port 61989 --client 127.0.0.1 --multiproc --file aws_idem
+
+for arg in "$@"
+do
+  if [ $arg == '--port' ]; then
+    shift; shift
+  elif [ $arg == '--client' ]; then
+    shift; shift
+  elif [ $arg == '--multiproc' ]; then
+    shift
+  elif [ $arg == '--file' ]; then
+    shift; shift
+  else
+    :
+  fi   
+
+done
+
+eval "$@" 
