@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+
+import os, sys
+
+def unique(seq): 
+   # order preserving
+   checked = []
+   for e in seq:
+       if e not in checked:
+           checked.append(e)
+   return checked
+
+if len(sys.argv) == 2:
+    path = sys.argv[1]
+else:
+    path = os.getenv("PATH")
+
+path_elements = path.split(":")
+cleaned_path = unique(path_elements)
+joined_path = ':'.join(p for p in cleaned_path)
+print(joined_path)
