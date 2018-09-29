@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+# Copy a skeleton python project and do minimum setup
+
+
+BASE_DIR="/Users/tracy/Everything/Activities"
+PY_PROJ_SKEL="${BASE_DIR}/python_project_skeleton/packagename"
+GIT_REPO_USERNAME='tflynn'
+
+if [ "$1" == "" ]; then
+	echo "Must specify package name"
+	exit 1
+fi
+
+package_name="$1"
+
+full_package_repo_dir="${BASE_DIR}/${package_name}"
+full_package_dir="${full_package_repo_dir}/${package_name}"
+
+mkdir -p ${full_package_dir}
+
+cp "${PY_PROJ_SKEL}/LICENSE" ${full_package_repo_dir}
+cp "${PY_PROJ_SKEL}/.gitignore" ${full_package_repo_dir}
+touch ${full_package_dir}/__init__.py
+
+tmp_file=$(mktemp)
+echo "#!/usr/bin/env bash" > $tmp_file
+echo "sed 's/packagename/${package_name}/g' < ${PY_PROJ_SKEL}/README.md.tpl > ${full_package_repo_dir}/README.md" >> $tmp_file
+echo "sed 's/packagename/${package_name}/g' < ${PY_PROJ_SKEL}/setup.py.tpl > ${full_package_repo_dir}/setup.py" >> $tmp_file
+bash ${tmp_file}
+rm ${tmp_file}
+
+echo "git+https://github.com/${GIT_REPO_USERNAME}/standard_logger.git@master#egg=standard_logger" > ${full_package_repo_dir}/requirements.txt
+
+pushd ${full_package_repo_dir}
+git init
+virtualenv --system-site-packages venv
+popd
+
+cat <<GIT_CONFIG  >${full_package_repo_dir}/.git/config
+[core]
+	repositoryformatversion = 0
+	filemode = true
+	bare = false
+	logallrefupdates = true
+	ignorecase = true
+	precomposeunicode = true
+[remote "origin"]
+	url = git@github.com:${GIT_REPO_USERNAME}/${package_name}.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[branch "master"]
+	remote = origin
+	merge = refs/heads/master
+GIT_CONFIG
