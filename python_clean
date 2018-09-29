@@ -19,6 +19,27 @@ def usage():
 
     """)
 
+def run_command(**kwargs):
+    """
+    Run a command using Popen.
+    Args:
+        **kwargs: cmd=[command, params]
+
+    Returns:
+        Success: tuple of (out, err)
+        Failure: None
+    """
+    if 'cmd' in kwargs:
+        cmd = kwargs['cmd']
+        p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        results = p.communicate()
+        out = results[0].decode('UTF8').strip()
+        err = results[1].decode('UTF8').strip()
+        return out,err
+    else:
+        return None
+
+
 def clean_it(argv):
 
     parser = argparse.ArgumentParser()
@@ -53,14 +74,11 @@ def clean_it(argv):
     for cache_file in cache_files:
         os.remove(cache_file)
 
-    cmd = "/usr/local/bin/python_clean_path --prefix {0}".format(package_prefix)
-
-    # popen mixes in additional arguments intended for child process management
-    # with the arguments intended for the called child.
-    # So, if you parse the command-line and check arguments you will fail ...
-
-    # So, although this is no longer recommended it works ...
-    os.system(cmd)
+    python_clean_path_bin, err = run_command(cmd=["which", "python_clean_path"])
+    cmd = "{0} --prefix {1}".format(python_clean_path_bin, package_prefix)
+    cmd_parts = cmd.split()
+    out, error = run_command(cmd=cmd_parts)
+    print(out)
 
 
 if __name__ == "__main__":
