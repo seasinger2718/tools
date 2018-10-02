@@ -1,14 +1,23 @@
 #!/usr/bin/env bash
 
-suffix=$(random_str)
-xx_dir="xx.${suffix}"
+if [ "$1" == "" ]; then
+	exit 1
+fi
 
-mkdir -p ${xx_dir}
+tmp_dir=${HOME}/tmp
 
-cp $1  ${xx_dir}
+file_path=$1
 
-cd ${xx_dir}
+file_name=$(file_parts $file_path | cut -d',' -f3)
 
-unzip $1
+cp $file_path $tmp_dir
 
-echo "Unpacked to cd ${xx_dir}"
+pushd $tmp_dir >/dev/null
+
+target_dir=$(file_parts $file_path | cut -d',' -f4)
+mkdir -p $target_dir
+unzip $file_name -d $target_dir
+
+echo "Unpacked to $tmp_dir/$target_dir"
+
+popd >/dev/null
