@@ -26,9 +26,25 @@ def print_footer():
     print(msg)
     return
 
+def skip_path(path):
+  homedir = os.environ['HOME']
+  if path == (homedir + '/.startup/mybin'):
+    return True
+  if 'lib-dynload' in path:
+    return True
+  if '.egg' in path:
+    return True
+  # if '/lib/python' in path:
+  #   return True
+  if 'site-packages' not in path:
+    return True
+    
+  return False
+
 
 for path in sys.path:
     if os.path.exists(path):
+      if not skip_path(path):
         print_header(path)
         cmd = ["ls -1"]
         p = Popen(cmd,

@@ -8,7 +8,8 @@ PY_PROJ_SKEL="${BASE_DIR}/python_project_skeleton/packagename"
 GIT_REPO_USERNAME='tflynn'
 
 if [ "$1" == "" ]; then
-	echo "Must specify package name"
+	echo "Create a python project skeleton for the specified package"
+	echo "Usage: pyskel <package name>"
 	exit 1
 fi
 
@@ -34,7 +35,7 @@ echo "git+https://github.com/${GIT_REPO_USERNAME}/standard_logger.git@master#egg
 
 pushd ${full_package_repo_dir}
 git init
-virtualenv --system-site-packages venv
+echo "3.6.5" > .python-version
 popd
 
 cat <<GIT_CONFIG  >${full_package_repo_dir}/.git/config

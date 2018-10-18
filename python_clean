@@ -51,6 +51,11 @@ def clean_it(argv):
     package_prefix = None
 
     cwd = os.getcwd()
+
+    if not path.exists('setup.py'):
+        print("Please switch to root of project")
+        sys.exit(1)
+
     if args.prefix:
         package_prefix = args.prefix
     else:
@@ -65,20 +70,24 @@ def clean_it(argv):
                                      glob.glob("../*egg-info")))
     
     dirs_to_remove.extend(more_egg_info_dirs)
+    # print("python_clean (debug) dirs_to_remove {0}".format(dirs_to_remove))
     for subdir in dirs_to_remove :
         full_path = path.join(cwd,subdir)
         if path.isdir(full_path):
             shutil.rmtree(full_path)
 
     cache_files = glob.glob("../*pycache*", recursive=True)
+    # print("python_clean (debug) cache_files {0}".format(cache_files))
     for cache_file in cache_files:
         os.remove(cache_file)
 
     python_clean_path_bin, err = run_command(cmd=["which", "python_clean_path"])
     cmd = "{0} --prefix {1}".format(python_clean_path_bin, package_prefix)
     cmd_parts = cmd.split()
-    out, error = run_command(cmd=cmd_parts)
-    print(out)
+    # print("python_clean (debug) python_clean_path {0}".format(cmd_parts))
+    # Disabled clean_path 2018/10/17
+    # out, error = run_command(cmd=cmd_parts)
+    # print(out)
 
 
 if __name__ == "__main__":
