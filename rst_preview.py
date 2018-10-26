@@ -1,3 +1,4 @@
+
 from glob import glob
 from os.path import join, realpath, dirname, getsize, getmtime, isfile
 from os import pathsep, getcwd
@@ -17,6 +18,8 @@ build_folder_name = "build"
 driver = webdriver.Chrome(path_to_webdriver)  # Change "Chrome" to the right type of browser driver you are using
 
 # endregion
+
+
 
 script_path = dirname(realpath(__file__))
 active_dir = getcwd()
