@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+doc_type="reStructuredText"
+
+if [ -n "$2" ]; then
+	if [ "$2" == "k8" ]; then
+		doc_type="k8"
+	elif [ "$2" == "docker" ]; then
+		doc_type="docker"
+	else 
+		doc_type="reStructuredText"
+	fi
+fi
+
+root_doc_dir="${HOME}/Everything/Activities/general_docs"
+base_doc_source_dir="${root_doc_dir}/source"
+base_doc_build_dir="${root_doc_dir}/build"
+
+pushd ${root_doc_dir} >/dev/null
+eval "$(pyenv init -)"
+pyenv shell 2.7.15
+
+pushd ${base_doc_source_dir} >/dev/null
+
+if [ -n "$1" ]; then
+	
+	if [ "${doc_type}" == "k8" ]; then
+		doc_dir="kubernetes"
+	elif [ "${doc_type}" == "docker" ]; then
+		doc_dir="docker"
+	else
+		doc_dir="reStructuredText"
+	fi
+
+	cd "${doc_dir}"
+	
+
+	full_filename=$(basename -- "$1")
+	extension="${full_filename##*.}"
+	filename="${full_filename%.*}"
+
+	source_doc_dir=$(pwd)
+	md_file="${source_doc_dir}/${filename}.md"
+	rst_file="${source_doc_dir}/${filename}.rst"
+	pdf_style_sheet="${base_doc_source_dir}/base.style"
+	pdf_dir="${base_doc_build_dir}/pdf"
+	pdf_file="${pdf_dir}/${filename}.pdf"
+	html_build_dir="${base_doc_build_dir}/html/${doc_dir}"
+	html_doc="${html_build_dir}/${filename}.html"
+
+	if [ "$extension" == "md" ]; then
+		if [ -e "$md_file" ]; then
+			if [ -e "${rst_file}" ]; then
+				rm -f "${rst_file}"
+			fi
+			m2r "$md_file"
+			cp ${rst_file} ${rst_file}.tmp
+			cat ${rst_file}.tmp | awk '{gsub(/.. code-block::/,"\n::\n")};{print}' > ${rst_file}
+			rm ${rst_file}.tmp
+		fi
+	fi
+
+	if [ -e "$rst_file" ]; then
+		rst2pdf -s "${pdf_style_sheet}" -o "${pdf_file}" "${rst_file}"
+		if [ "$?" != "0" ]; then
+			echo "Error converting from rst to PDF"
+			exit 1
+		fi
+		open "${pdf_file}"
+		cp "${pdf_file}" ~/GDrive/Reference
+	fi
+
+	cd "${root_doc_dir}"
+
+	make html
+
+	open "${html_doc}"
+
+fi
+
+popd >/dev/null
+popd >/dev/null
