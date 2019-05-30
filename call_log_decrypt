@@ -53,7 +53,7 @@ encrypted_data = input_file.read
 puts "encrypted_data.length #{encrypted_data.length}"
 input_file.close
 
-scheme = "AES-256-CFB:2:1:DVcqP8CZE_2w8FiA5koqMw==:yyyif2YU40eUJ7Gr9UBdC9-cZ3NL2tIwtmziZDu46fE="
+scheme = "AES-256-CFB:2:1:DVcqP8CZfE="
 
 decrypter = Octocrypt::Decryptor.new(scheme)
 decrypted_data  = ""
